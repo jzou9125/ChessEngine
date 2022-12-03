@@ -25,6 +25,7 @@ class GameState:
         self.inChecked = False
         self.pins = []
         self.checks = []
+        self.enpassantPossible = ()
 
     def process_move(self, move):
         if move.pieceMoved == 'wK':
@@ -34,6 +35,14 @@ class GameState:
 
         self.board[move.startRow][move.startColumn] = '--'
         self.board[move.endRow][move.endColumn] = move.promotionPiece if move.isPromotion else move.pieceMoved
+        if move.pieceMoved[1] == 'p' and abs(move.startRow - move.endRow) == 2:
+            self.enpassantPossible = ((move.startRow+move.endRow)//2, move.startColumn)
+        else:
+            self.enpassantPossible = ()
+
+        if move.isEnPassant:
+            self.board[move.startRow][move.endColumn] = '--'
+
         self.moveLog.append(move)
         self.change_turn()
 
@@ -43,6 +52,9 @@ class GameState:
         last_move = self.moveLog.pop()
         self.board[last_move.endRow][last_move.endColumn] = last_move.pieceCaptured
         self.board[last_move.startRow][last_move.startColumn] = last_move.pieceMoved
+
+        if last_move.isEnPassant:
+            self.board[last_move.startRow][last_move.endColumn] = 'w' if last_move.pieceMoved[0] == 'b' else 'b' + 'p'
 
         if last_move.pieceMoved == 'wK':
             self.white_king_location = last_move.startRow, last_move.startColumn
@@ -119,10 +131,14 @@ class GameState:
             if not piece_pinned or pin_direction == (direction, -1):
                 if self.board[row + direction][column - 1][0] == capture:
                     moves.append(Move((row, column), (row + direction, column - 1), self.board))
+                elif (row+direction, column-1) == self.enpassantPossible:
+                    moves.append(Move((row, column), (row + direction, column - 1), self.board, is_enpassant=True))
         if column + 1 < self.BOARDLENGTH:
             if not piece_pinned or pin_direction == (direction, 1):
                 if self.board[row + direction][column + 1][0] == capture:
                     moves.append(Move((row, column), (row + direction, column + 1), self.board))
+                elif (row+direction, column+1) == self.enpassantPossible:
+                    moves.append(Move((row, column), (row + direction, column + 1), self.board, is_enpassant=True))
 
     def get_rook_moves(self, row, column, moves):
         piece_pinned, pin_direction = self.is_pinned(row, column)
@@ -268,15 +284,16 @@ class Move:
     filesToColumns = {'a': 0, 'b': 1, 'c': 2, 'd': 3, 'e': 4, 'f': 5, 'g': 6, 'h': 7}
     columnsToFiles = {0: 'a', 1: 'b', 2: 'c', 3: 'd', 4: 'e', 5: 'f', 6: 'g', 7: 'h'}
 
-    def __init__(self, starting_square, target_square, board):
+    def __init__(self, starting_square, target_square, board, is_enpassant=False):
         self.startRow, self.startColumn = starting_square
         self.endRow, self.endColumn = target_square
         self.pieceMoved = board[self.startRow][self.startColumn]
         self.pieceCaptured = board[self.endRow][self.endColumn]
         self.isPromotion = False
-        self.isPromotion = (self.pieceMoved == 'wp' and target_square[0] == 0) or (self.pieceMoved == 'bp' and target_square[0] == 7)
+        self.isPromotion = (self.pieceMoved == 'wp' and target_square[0] == 0) or \
+                           (self.pieceMoved == 'bp' and target_square[0] == 7)
         self.promotionPiece = None
-        self.isEnPassant = False
+        self.isEnPassant = is_enpassant
         self.moveId = self.startRow * 1000 + self.startColumn * 100 + self.endRow * 10 + self.endColumn
 
     def __eq__(self, other):
