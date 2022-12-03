@@ -33,7 +33,7 @@ class GameState:
             self.black_king_location = move.endRow, move.endColumn
 
         self.board[move.startRow][move.startColumn] = '--'
-        self.board[move.endRow][move.endColumn] = move.pieceMoved
+        self.board[move.endRow][move.endColumn] = move.promotionPiece if move.isPromotion else move.pieceMoved
         self.moveLog.append(move)
         self.change_turn()
 
@@ -273,6 +273,10 @@ class Move:
         self.endRow, self.endColumn = target_square
         self.pieceMoved = board[self.startRow][self.startColumn]
         self.pieceCaptured = board[self.endRow][self.endColumn]
+        self.isPromotion = False
+        self.isPromotion = (self.pieceMoved == 'wp' and target_square[0] == 0) or (self.pieceMoved == 'bp' and target_square[0] == 7)
+        self.promotionPiece = None
+        self.isEnPassant = False
         self.moveId = self.startRow * 1000 + self.startColumn * 100 + self.endRow * 10 + self.endColumn
 
     def __eq__(self, other):

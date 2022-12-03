@@ -42,7 +42,14 @@ def main():
                         player_clicks.append((row, column))
                     elif len(player_clicks) == 1:
                         move = Engine.Move(player_clicks.pop(0), (row, column), game_state.board)
+                        print(move.get_chess_notation())
                         if move in valid_moves:
+                            if move.isPromotion:
+                                color = 'w' if game_state.whiteToMove else 'b'
+                                move.promotionPiece = input("choose a character to promote to 'N', 'Q', 'B', 'R'")
+                                while move.promotionPiece not in game_state.moveFunctions:
+                                    move.promotionPiece = input("choose a character to promote to 'N', 'Q', 'B', 'R'")
+                                move.promotionPiece = color + move.promotionPiece
                             game_state.process_move(move)
                             move_made = True
                         else:
