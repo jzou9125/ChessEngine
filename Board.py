@@ -1,5 +1,6 @@
 import pygame as p
 import Engine
+import AI
 
 WIDTH = HEIGHT = 512
 DIMENSION = 8
@@ -26,37 +27,42 @@ def main():
     valid_moves = game_state.get_valid_moves()
     move_made = False
     player_clicks = []
+    player_one = False
+    player_two = False
+    game_over = False
 
     running = True
     while running:
+        is_human_turn = (game_state.whiteToMove and player_one) or (not game_state.whiteToMove and player_two)
         for e in p.event.get():
             if e.type == p.QUIT:
                 running = False
             elif e.type == p.MOUSEBUTTONDOWN:  # mouse handler
-                location = p.mouse.get_pos()
-                column, row = map(transform_to_grid, location)
-                if player_clicks and (row, column) == player_clicks[0]:
-                    player_clicks = []
-                else:
-                    if len(player_clicks) == 0 and game_state.board[row][column][0] == \
-                            ('w' if game_state.whiteToMove else 'b'):
-                        player_clicks.append((row, column))
-                    elif len(player_clicks) == 1:
-                        start, target = player_clicks.pop(), (row, column)
-                        for move in valid_moves:
-                            if (move.startRow, move.startColumn) == start and (move.endRow, move.endColumn) == target:
-                                if move.isPromotion:
-                                    color = 'w' if game_state.whiteToMove else 'b'
-                                    move.promotionPiece = input("choose a character to promote to 'N', 'Q', 'B', 'R'")
-                                    while move.promotionPiece not in game_state.moveFunctions:
-                                        move.promotionPiece = input(
-                                            "choose a character to promote to 'N', 'Q', 'B', 'R'")
-                                    move.promotionPiece = color + move.promotionPiece
-                                game_state.process_move(move)
-                                move_made = True
-                                animate = True
-                        else:
+                if not game_over and is_human_turn:
+                    location = p.mouse.get_pos()
+                    column, row = map(transform_to_grid, location)
+                    if player_clicks and (row, column) == player_clicks[0]:
+                        player_clicks = []
+                    else:
+                        if len(player_clicks) == 0 and game_state.board[row][column][0] == \
+                                ('w' if game_state.whiteToMove else 'b'):
                             player_clicks.append((row, column))
+                        elif len(player_clicks) == 1:
+                            start, target = player_clicks.pop(), (row, column)
+                            for move in valid_moves:
+                                if (move.startRow, move.startColumn) == start and (move.endRow, move.endColumn) == target:
+                                    if move.isPromotion:
+                                        color = 'w' if game_state.whiteToMove else 'b'
+                                        move.promotionPiece = input("choose a character to promote to 'N', 'Q', 'B', 'R'")
+                                        while move.promotionPiece not in game_state.moveFunctions:
+                                            move.promotionPiece = input(
+                                                "choose a character to promote to 'N', 'Q', 'B', 'R'")
+                                        move.promotionPiece = color + move.promotionPiece
+                                    game_state.process_move(move)
+                                    move_made = True
+                                    animate = True
+                            else:
+                                player_clicks.append((row, column))
 
             if e.type == p.KEYDOWN:
                 if e.key == p.K_z:
@@ -69,6 +75,12 @@ def main():
                     player_clicks = []
                     move_made = False
                     animate = False
+
+        if not game_over and not is_human_turn:
+            ai_move = AI.find_random_move(valid_moves)
+            game_state.process_move(ai_move)
+            move_made = True
+            animate = True
 
         if move_made:
             if animate:
@@ -109,7 +121,7 @@ def draw_pieces(screen, board):
     for row in range(DIMENSION):
         for column in range(DIMENSION):
             piece = board[row][column]
-            if piece != '--':
+            if piece and piece != '--':
                 screen.blit(IMAGES[piece], p.Rect(column * SQUARE_SIZE, row * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE))
 
 

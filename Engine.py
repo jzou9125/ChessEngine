@@ -303,7 +303,7 @@ class GameState:
             end_row, end_column = start_row + change_row, start_col + change_column
             if self.inside_board(end_row, end_column):
                 end_piece = self.board[end_row][end_column]
-                if end_piece[0] == enemy and end_piece[1] == 'N':
+                if end_piece and end_piece[0] == enemy and end_piece[1] == 'N':
                     in_check = True
                     checks.append((end_row, end_column, change_row, change_column))
         return in_check, pins, checks
