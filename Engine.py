@@ -54,7 +54,8 @@ class GameState:
         self.board[last_move.startRow][last_move.startColumn] = last_move.pieceMoved
 
         if last_move.isEnPassant:
-            self.board[last_move.startRow][last_move.endColumn] = 'w' if last_move.pieceMoved[0] == 'b' else 'b' + 'p'
+            self.board[last_move.endRow][last_move.endColumn] = '--'
+            self.board[last_move.startRow][last_move.endColumn] = ('w' if last_move.pieceMoved[0] == 'b' else 'b') + 'p'
 
         if last_move.pieceMoved == 'wK':
             self.white_king_location = last_move.startRow, last_move.startColumn
