@@ -84,12 +84,6 @@ class GameState:
             possible_moves = self.get_all_possible_moves()
         return possible_moves
 
-    def is_checked(self):
-        if self.whiteToMove:
-            return self.square_under_attack(*self.white_king_location)
-        else:
-            return self.square_under_attack(*self.black_king_location)
-
     def is_pinned(self, row, column):
         pinned, pin_direction = False, ()
         for i in range(len(self.pins) - 1, -1, -1):
@@ -98,15 +92,6 @@ class GameState:
                 pin_direction = self.pins[i][2], self.pins[i][3]
                 self.pins.remove(self.pins[i])
         return pinned, pin_direction
-
-    def square_under_attack(self, row, column):
-        self.change_turn()
-        opponent_moves = self.get_all_possible_moves()
-        self.change_turn()
-        for move in opponent_moves:
-            if move.endRow == row and move.endColumn == column:
-                return True
-        return False
 
     def get_all_possible_moves(self):
         moves = []
@@ -131,11 +116,11 @@ class GameState:
                 if row == double_jump and self.board[row + direction * 2][column] == '--':
                     moves.append(Move((row, column), (row + direction * 2, column), self.board))
         if column - 1 >= 0:
-            if not piece_pinned or pin_direction == (direction, 0):
+            if not piece_pinned or pin_direction == (direction, -1):
                 if self.board[row + direction][column - 1][0] == capture:
                     moves.append(Move((row, column), (row + direction, column - 1), self.board))
         if column + 1 < self.BOARDLENGTH:
-            if not piece_pinned or pin_direction == (direction, 0):
+            if not piece_pinned or pin_direction == (direction, 1):
                 if self.board[row + direction][column + 1][0] == capture:
                     moves.append(Move((row, column), (row + direction, column + 1), self.board))
 
