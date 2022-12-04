@@ -6,6 +6,8 @@ import copy
 
 class GameState:
     def __init__(self):
+        self.staleMate = False
+        self.checkMate = False
         self.board = [
             ['bR', 'bN', 'bB', 'bQ', 'bK', 'bB', 'bN', 'bR'],
             ['bp', 'bp', 'bp', 'bp', 'bp', 'bp', 'bp', 'bp'],
@@ -27,6 +29,7 @@ class GameState:
         self.pins = []
         self.checks = []
         self.enpassantPossible = ()
+        self.enpassantLog = [self.enpassantPossible]
         self.castleRights = CastleRight(True, True, True, True)
         self.castleRightLogs = [
             CastleRight(self.castleRights.wks, self.castleRights.bks, self.castleRights.wqs, self.castleRights.bqs)]
@@ -59,6 +62,7 @@ class GameState:
         self.castleRightLogs.append(
             CastleRight(self.castleRights.wks, self.castleRights.bks, self.castleRights.wqs, self.castleRights.bqs))
         self.moveLog.append(move)
+        self.enpassantLog.append(self.enpassantPossible)
         self.change_turn()
 
     def undo_move(self):
@@ -77,6 +81,8 @@ class GameState:
         if last_move.pieceMoved == 'bK':
             self.black_king_location = last_move.startRow, last_move.startColumn
 
+        self.enpassantLog.pop()
+        self.enpassantPossible = self.enpassantLog[-1]
         self.castleRightLogs.pop()
         self.castleRights = copy.deepcopy(self.castleRightLogs[-1])
         if last_move.isCastle:
@@ -89,6 +95,8 @@ class GameState:
                     last_move.endColumn + 1]
                 self.board[last_move.endRow][last_move.endColumn + 1] = '--'
         self.change_turn()
+        self.checkMate = False
+        self.staleMate = False
 
     def change_turn(self):
         self.whiteToMove = not self.whiteToMove
@@ -122,6 +130,12 @@ class GameState:
         else:
             possible_moves = self.get_all_possible_moves()
             self.get_castle_moves(king_row, king_column, possible_moves)
+
+        if len(possible_moves) == 0:
+            if self.inChecked:
+                self.checkMate = True
+            else:
+                self.staleMate = True
 
         return possible_moves
 
@@ -252,12 +266,14 @@ class GameState:
                     if self.whiteToMove:
                         self.white_king_location = (end_row, end_column)
                     else:
-                        self.black_king_location = (end_row, end_column)
+                        self.black_king_location = end_row, end_column
                     in_check, pins, checks = self.check_for_pins_and_checks()
                     if not in_check:
                         moves.append(Move((row, column), (end_row, end_column), self.board))
+                    # elif len(checks) == 1:
+                        #there is a bug that stops the king from taking the piece that is checking it
                     if self.whiteToMove:
-                        self.white_king_location = row, column
+                        self.white_king_location = (row, column)
                     else:
                         self.black_king_location = row, column
 
@@ -303,7 +319,7 @@ class GameState:
             end_row, end_column = start_row + change_row, start_col + change_column
             if self.inside_board(end_row, end_column):
                 end_piece = self.board[end_row][end_column]
-                if end_piece and end_piece[0] == enemy and end_piece[1] == 'N':
+                if end_piece[0] == enemy and end_piece[1] == 'N':
                     in_check = True
                     checks.append((end_row, end_column, change_row, change_column))
         return in_check, pins, checks
@@ -403,6 +419,22 @@ class Move:
         if isinstance(other, Move):
             return self.moveId == other.moveId
         return False
+
+    def __str__(self):
+        #castle
+        if self.isCastle:
+            return '0-0' if self.endColumn == 6 else '0-0-0'
+        end_square = self.get_rank_file(self.endRow, self.endColumn)
+        if self.pieceMoved[1] == 'p':
+            if self.pieceCaptured != '--':
+                return f"{self.columnsToFiles[self.startColumn]}x{end_square}"
+            elif self.isPromotion:
+                pass
+            else:
+                return end_square
+        return self.pieceMoved[1] + end_square
+
+
 
     def get_chess_notation(self):
         return self.get_rank_file(self.startRow, self.startColumn) + self.get_rank_file(self.endRow, self.endColumn)
