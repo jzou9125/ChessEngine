@@ -156,7 +156,6 @@ class GameState:
                 if color == 'w' and self.whiteToMove or (color == 'b' and not self.whiteToMove):
                     piece = self.board[row][column][1]
                     self.moveFunctions[piece](row, column, moves)
-
         return moves
 
     def get_pawn_moves(self, row, column, moves):
@@ -267,11 +266,11 @@ class GameState:
                         self.white_king_location = (end_row, end_column)
                     else:
                         self.black_king_location = end_row, end_column
+                    self.board[end_row][end_column] = '--'
                     in_check, pins, checks = self.check_for_pins_and_checks()
+                    self.board[end_row][end_column] = end_piece
                     if not in_check:
                         moves.append(Move((row, column), (end_row, end_column), self.board))
-                    # elif len(checks) == 1:
-                        #there is a bug that stops the king from taking the piece that is checking it
                     if self.whiteToMove:
                         self.white_king_location = (row, column)
                     else:
@@ -314,6 +313,8 @@ class GameState:
                                 break
                         else:
                             break
+                else:
+                    break
         knight_directions = ((1, 2), (1, -2), (2, 1), (2, -1), (-2, 1), (-2, -1), (-1, 2), (-1, -2))
         for change_row, change_column in knight_directions:
             end_row, end_column = start_row + change_row, start_col + change_column

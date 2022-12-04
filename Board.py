@@ -31,7 +31,7 @@ def main():
     move_made = False
     player_clicks = []
     player_one = True
-    player_two = False
+    player_two = True
     game_over = False
     ai_thinking = False
     move_finder_process = False
