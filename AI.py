@@ -1,5 +1,5 @@
 import random
-import Engine
+import ChessEngine
 
 PIECE_SCORE = {"K": 0, "Q": 10, "R": 5, "B": 3, "N": 3, "p": 1, "-": 0}
 CHECKMATE = 1000
@@ -89,12 +89,12 @@ def find_move_nega_max_alpha_beta(game_state, valid_moves, depth, alpha, beta, t
     return max_score
 
 def score_board(game_state):
-    if game_state.checkMate:
+    if game_state.checkmate:
         if game_state.whiteToMove:
             return -CHECKMATE
         else:
             return CHECKMATE
-    elif game_state.staleMate:
+    elif game_state.stalemate:
         return STALEMATE
 
     score = 0

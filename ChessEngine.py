@@ -6,8 +6,9 @@ import copy
 
 class GameState:
     def __init__(self):
-        self.staleMate = False
-        self.checkMate = False
+        self.stalemate = False
+        self.checkmate = False
+
         self.board = [
             ['bR', 'bN', 'bB', 'bQ', 'bK', 'bB', 'bN', 'bR'],
             ['bp', 'bp', 'bp', 'bp', 'bp', 'bp', 'bp', 'bp'],
@@ -95,8 +96,8 @@ class GameState:
                     last_move.endColumn + 1]
                 self.board[last_move.endRow][last_move.endColumn + 1] = '--'
         self.change_turn()
-        self.checkMate = False
-        self.staleMate = False
+        self.checkmate = False
+        self.stalemate = False
 
     def change_turn(self):
         self.whiteToMove = not self.whiteToMove
@@ -133,9 +134,9 @@ class GameState:
 
         if len(possible_moves) == 0:
             if self.inChecked:
-                self.checkMate = True
+                self.checkmate = True
             else:
-                self.staleMate = True
+                self.stalemate = True
 
         return possible_moves
 
@@ -414,15 +415,8 @@ class Move:
         self.promotionPiece = None
         self.isEnPassant = is_enpassant
         self.isCastle = is_castle
-        self.moveId = self.startRow * 1000 + self.startColumn * 100 + self.endRow * 10 + self.endColumn
-
-    def __eq__(self, other):
-        if isinstance(other, Move):
-            return self.moveId == other.moveId
-        return False
 
     def __str__(self):
-        #castle
         if self.isCastle:
             return '0-0' if self.endColumn == 6 else '0-0-0'
         end_square = self.get_rank_file(self.endRow, self.endColumn)
@@ -434,11 +428,6 @@ class Move:
             else:
                 return end_square
         return self.pieceMoved[1] + end_square
-
-
-
-    def get_chess_notation(self):
-        return self.get_rank_file(self.startRow, self.startColumn) + self.get_rank_file(self.endRow, self.endColumn)
 
     def get_rank_file(self, row, column):
         return self.columnsToFiles[column] + self.rowsToRanks[row]
