@@ -14,7 +14,7 @@ def find_best_move(game_state, valid_moves, return_queue):
     global next_move
     next_move = None
     random.shuffle(valid_moves)
-    find_move_nega_max_alpha_beta(game_state, valid_moves, DEPTH, -CHECKMATE, CHECKMATE, 1 if game_state.whiteToMove else -1)
+    find_move_nega_max_alpha_beta(game_state, valid_moves, DEPTH, -CHECKMATE, CHECKMATE, 1 if game_state.states.white_to_move else -1)
     return_queue.put(next_move)
 
 
@@ -89,12 +89,12 @@ def find_move_nega_max_alpha_beta(game_state, valid_moves, depth, alpha, beta, t
     return max_score
 
 def score_board(game_state):
-    if game_state.checkmate:
-        if game_state.whiteToMove:
+    if game_state.states.checkmate:
+        if game_state.states.white_to_move:
             return -CHECKMATE
         else:
             return CHECKMATE
-    elif game_state.stalemate:
+    elif game_state.states.stalemate:
         return STALEMATE
 
     score = 0

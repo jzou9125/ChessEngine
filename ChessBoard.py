@@ -38,7 +38,7 @@ def main():
     move_finder_process = False
     running = True
     while running:
-        is_human_turn = (game_state.whiteToMove and player_one) or (not game_state.whiteToMove and player_two)
+        is_human_turn = (game_state.states.white_to_move and player_one) or (not game_state.states.white_to_move and player_two)
         for e in p.event.get():
             if e.type == p.QUIT:
                 running = False
@@ -64,16 +64,16 @@ def main():
 
         if move_made:
             if animate:
-                animate_move(game_state.moveLog[-1], screen, game_state.board, clock)
+                animate_move(game_state.states.move_logs[-1], screen, game_state.board, clock)
             valid_moves = game_state.get_valid_moves()
             move_made = False
 
         draw_game_state(screen, game_state, valid_moves, player_clicks[0] if player_clicks else (), move_log_font)
 
-        if game_state.checkmate or game_state.stalemate:
+        if game_state.states.checkmate or game_state.states.stalemate:
             game_over = True
-            text = "Stalemate" if game_state.stalemate else "Black wins by checkmate" \
-                if game_state.whiteToMove else "White wins by checkmate"
+            text = "Stalemate" if game_state.states.stalemate else "Black wins by checkmate" \
+                if game_state.states.white_to_move else "White wins by checkmate"
             draw_text(screen, text)
 
         clock.tick(MAX_FPS)
@@ -89,7 +89,7 @@ def mouse_handler(game_over, is_human_turn, player_clicks, game_state, valid_mov
             player_clicks = []
         else:
             if len(player_clicks) == 0 and game_state.board[row][column][0] == \
-                    ('w' if game_state.whiteToMove else 'b'):
+                    ('w' if game_state.states.white_to_move else 'b'):
                 player_clicks.append((row, column))
             elif len(player_clicks) == 1:
                 start, target = player_clicks.pop(), (row, column)
@@ -97,7 +97,7 @@ def mouse_handler(game_over, is_human_turn, player_clicks, game_state, valid_mov
                     if (move.startRow, move.startColumn) == start and (
                             move.endRow, move.endColumn) == target:
                         if move.isPromotion:
-                            color = 'w' if game_state.whiteToMove else 'b'
+                            color = 'w' if game_state.states.white_to_move else 'b'
                             move.promotionPiece = input(
                                 "choose a character to promote to 'N', 'Q', 'B', 'R'")
                             while move.promotionPiece not in game_state.moveFunctions:
@@ -147,7 +147,7 @@ def draw_board(screen):
 def highlight_selected_square(screen, game_state, valid_moves, square_selected):
     if square_selected != ():
         row, column = square_selected
-        if game_state.board[row][column][0] == ('w' if game_state.whiteToMove else 'b'):
+        if game_state.board[row][column][0] == ('w' if game_state.states.white_to_move else 'b'):
             surface = p.Surface((SQUARE_SIZE, SQUARE_SIZE))
             surface.set_alpha(100)
             surface.fill(p.Color('blue'))
@@ -170,7 +170,7 @@ def draw_pieces(screen, board):
 def draw_move_log(screen, game_state, move_log_font):
     move_log_rect = p.Rect(BOARD_WIDTH, 0, MOVE_LOG_PANEL_WIDTH, MOVE_LOG_PANEL_HEIGHT)
     p.draw.rect(screen, p.Color('black'), move_log_rect)
-    move_log = game_state.moveLog
+    move_log = game_state.states.move_logs
     move_texts = []
     moves_per_row = 3
     for i in range(0, len(move_log), 2):
