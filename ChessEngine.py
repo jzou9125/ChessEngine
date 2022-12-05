@@ -68,8 +68,8 @@ class GameState:
         king_row, king_column = self.states.get_king_position()
         if self.states.is_checked:
             if len(self.states.checks) == 1:
-                possible_moves = self.get_all_possible_moves()
                 check = self.states.checks[0]
+                possible_moves = self.get_all_possible_moves()
                 check_row, check_column = check[0], check[1]
                 piece_checking = self.board[check_row][check_column]
                 valid_squares = []
@@ -97,7 +97,7 @@ class GameState:
     def is_pinned(self, row, column):
         pinned, pin_direction = False, ()
         for i in range(len(self.states.pins) - 1, -1, -1):
-            if self.states.pins[i][0] == row and self.states.pins[i][1] == column:
+            if (self.states.pins[i][0], self.states.pins[i][1]) == (row, column):
                 pinned = True
                 pin_direction = self.states.pins[i][2], self.states.pins[i][3]
                 self.states.pins.remove(self.states.pins[i])
@@ -279,10 +279,8 @@ class StateLog:
         self.white_to_move = not self.white_to_move
 
     def update_states(self, move):
-        if move.pieceMoved == 'wK':
-            self.white_king_location = move.endRow, move.endColumn
-        elif move.pieceMoved == 'bK':
-            self.black_king_location = move.endRow, move.endColumn
+        if move.pieceMoved[1] == 'K':
+            self.update_king(move.endRow, move.endColumn)
         self.move_logs.append(move)
         if move.pieceMoved[1] == 'p' and abs(move.startRow - move.endRow) == 2:
             self.enpassant_possible = ((move.startRow + move.endRow) // 2, move.startColumn)
@@ -333,10 +331,8 @@ class StateLog:
         self.castle_rights_logs.pop()
         self.castle_rights = copy.deepcopy(self.castle_rights_logs[-1])
         last_move = self.move_logs[-1]
-        if last_move.pieceMoved == 'wK':
-            self.white_king_location = last_move.startRow, last_move.startColumn
-        if last_move.pieceMoved == 'bK':
-            self.black_king_location = last_move.startRow, last_move.startColumn
+        if last_move.pieceMoved[1] == 'K':
+            self.update_king(last_move.startRow, last_move.startColumn)
         return self.move_logs.pop()
 
     def conditions_for_castle(self, king_or_queen_side):
@@ -388,21 +384,24 @@ class StateLog:
                     checks.append((end_row, end_column, change_row, change_column))
 
         self.is_checked = in_check
-        self.pins = pins
-        self.checks = checks
+        self.pins = copy.deepcopy(pins)
+        self.checks = copy.deepcopy(checks)
 
     def update_mate(self, param):
+        stalemate, checkmate = False, False
         if param == 0:
             if self.is_checked:
-                self.checkmate = True
+                checkmate = True
             else:
-                self.stalemate = True
+                stalemate = True
+        self.checkmate = checkmate
+        self.stalemate = stalemate
 
-    def update_king(self, end_row, end_column):
+    def update_king(self, row, column):
         if self.white_to_move:
-            self.white_king_location = end_row, end_column
+            self.white_king_location = row, column
         else:
-            self.black_king_location = end_row, end_column
+            self.black_king_location = row, column
 
     def get_king_position(self):
         return self.white_king_location if self.white_to_move else self.black_king_location
