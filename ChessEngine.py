@@ -36,12 +36,10 @@ class GameState:
         if move.isEnPassant:
             self.board[move.startRow][move.endColumn] = '--'
         elif move.isCastle:
-            if move.endColumn - move.startColumn == 2:
-                self.board[move.endRow][move.endColumn - 1] = self.board[move.endRow][move.endColumn + 1]
-                self.board[move.endRow][move.endColumn + 1] = '--'
-            else:
-                self.board[move.endRow][move.endColumn + 1] = self.board[move.endRow][move.endColumn - 2]
-                self.board[move.endRow][move.endColumn - 2] = '--'
+            rook_position = move.endColumn + (-1 if move.endColumn - move.startColumn == 2 else 1)
+            corner_position = move.endColumn + (1 if move.endColumn - move.startColumn == 2 else -2)
+            self.board[move.endRow][rook_position] = self.board[move.endRow][corner_position]
+            self.board[move.endRow][corner_position] = '--'
         self.states.update_states(move)
 
     def undo_move(self):
@@ -53,14 +51,10 @@ class GameState:
         if last_move.isEnPassant:
             self.board[last_move.startRow][last_move.endColumn] = self.states.opponent_color() + 'p'
         elif last_move.isCastle:
-            if last_move.endColumn - last_move.startColumn == 2:
-                self.board[last_move.endRow][last_move.endColumn + 1] = self.board[last_move.endRow][
-                    last_move.endColumn - 1]
-                self.board[last_move.endRow][last_move.endColumn - 1] = '--'
-            else:
-                self.board[last_move.endRow][last_move.endColumn - 2] = self.board[last_move.endRow][
-                    last_move.endColumn + 1]
-                self.board[last_move.endRow][last_move.endColumn + 1] = '--'
+            rook_position = last_move.endColumn + (-1 if last_move.endColumn - last_move.startColumn == 2 else 1)
+            corner_position = last_move.endColumn + (1 if last_move.endColumn - last_move.startColumn == 2 else -2)
+            self.board[last_move.endRow][corner_position] = self.board[last_move.endRow][rook_position]
+            self.board[last_move.endRow][rook_position] = '--'
 
     def get_valid_moves(self):
         possible_moves = []
@@ -96,11 +90,11 @@ class GameState:
 
     def is_pinned(self, row, column):
         pinned, pin_direction = False, ()
-        for i in range(len(self.states.pins) - 1, -1, -1):
-            if (self.states.pins[i][0], self.states.pins[i][1]) == (row, column):
+        for pin in self.states.pins:
+            if (pin[0], pin[1]) == (row, column):
                 pinned = True
-                pin_direction = self.states.pins[i][2], self.states.pins[i][3]
-                self.states.pins.remove(self.states.pins[i])
+                pin_direction = pin[2], pin[3]
+                self.states.pins.remove(pin)
         return pinned, pin_direction
 
     def get_all_possible_moves(self):
@@ -137,7 +131,6 @@ class GameState:
 
     def get_rook_moves(self, row, column, moves):
         piece_pinned, pin_direction = self.is_pinned(row, column)
-        capture = self.states.opponent_color()
         for change_row, change_column in ROOK_DIRECTIONS:
             if self.is_piece_movable(piece_pinned, pin_direction, (change_row, change_column)):
                 for i in range(1, BOARDLENGTH):
@@ -145,7 +138,7 @@ class GameState:
                     if inside_board(end_row, end_column):
                         if self.is_empty_square(end_row, end_column):
                             moves.append(Move((row, column), (end_row, end_column), self.board))
-                        elif self.is_piece(end_row, end_column, capture):
+                        elif self.is_piece(end_row, end_column, self.states.opponent_color()):
                             moves.append(Move((row, column), (end_row, end_column), self.board))
                             break
                         else:
@@ -157,16 +150,15 @@ class GameState:
         piece_pinned, pin_direction = self.is_pinned(row, column)
         if piece_pinned:
             return
-        capture = self.states.opponent_color()
         for change_row, change_column in KNIGHT_DIRECTIONS:
             end_row, end_column = row + change_row, column + change_column
             if inside_board(end_row, end_column):
-                if self.is_empty_square(end_row, end_column) or self.is_piece(end_row, end_column, capture):
+                if self.is_empty_square(end_row, end_column) or self.is_piece(end_row, end_column,
+                                                                              self.states.opponent_color()):
                     moves.append(Move((row, column), (end_row, end_column), self.board))
 
     def get_bishop_moves(self, row, column, moves):
         piece_pinned, pin_direction = self.is_pinned(row, column)
-        capture = self.states.opponent_color()
         for change_row, change_column in BISHOP_DIRECTIONS:
             if self.is_piece_movable(piece_pinned, pin_direction, (change_row, change_column)):
                 for i in range(1, BOARDLENGTH):
@@ -174,7 +166,7 @@ class GameState:
                     if inside_board(end_row, end_column):
                         if self.is_empty_square(end_row, end_column):
                             moves.append(Move((row, column), (end_row, end_column), self.board))
-                        elif self.is_piece(end_row, end_column, capture):
+                        elif self.is_piece(end_row, end_column, self.states.opponent_color()):
                             moves.append(Move((row, column), (end_row, end_column), self.board))
                             break
                         else:
