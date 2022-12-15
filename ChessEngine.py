@@ -110,6 +110,7 @@ class GameState:
         direction = -1 if self.states.white_to_move else 1
         capture = self.states.opponent_color()
         double_jump = 6 if self.states.white_to_move else 1
+        king_row, king_column = self.states.get_king_position()
 
         if self.is_empty_square(row + direction, column):
             if not piece_pinned or pin_direction == (direction, 0):
@@ -121,13 +122,49 @@ class GameState:
                 if self.is_piece(row + direction, column - 1, capture):
                     moves.append(Move((row, column), (row + direction, column - 1), self.board))
                 elif (row + direction, column - 1) == self.states.enpassant_possible:
-                    moves.append(Move((row, column), (row + direction, column - 1), self.board, is_enpassant=True))
+                    blocking_piece = attacking_piece = False
+                    if king_row == row:
+                        if king_column < column:
+                            inside_range = range(king_column+1, column-1)
+                            outside_range = range(column+1, 8)
+                        else:
+                            inside_range = range(king_column-1, column, -1)
+                            outside_range = range(column-2, -1, -1)
+                        for i in inside_range:
+                            if self.board[row][i] != '--':
+                                blocking_piece = True
+                        for i in outside_range:
+                            square = self.board[row][i]
+                            if square[0] == capture and (square[1] in ('R', 'Q')):
+                                attacking_piece = True
+                            elif square != '--':
+                                blocking_piece = True
+                    if not attacking_piece or blocking_piece:
+                        moves.append(Move((row, column), (row + direction, column - 1), self.board, is_enpassant=True))
         if column + 1 < BOARDLENGTH:
             if not piece_pinned or pin_direction == (direction, 1):
                 if self.is_piece(row + direction, column + 1, capture):
                     moves.append(Move((row, column), (row + direction, column + 1), self.board))
                 elif (row + direction, column + 1) == self.states.enpassant_possible:
-                    moves.append(Move((row, column), (row + direction, column + 1), self.board, is_enpassant=True))
+                    blocking_piece = attacking_piece = False
+                    if king_row == row:
+                        if king_column < column:
+                            inside_range = range(king_column+1, column)
+                            outside_range = range(column+2, 8)
+                        else:
+                            inside_range = range(king_column-1, column+1, -1)
+                            outside_range = range(column-1, -1, -1)
+                        for i in inside_range:
+                            if self.board[row][i] != '--':
+                                blocking_piece = True
+                        for i in outside_range:
+                            square = self.board[row][i]
+                            if square[0] == capture and (square[1] in ('R', 'Q')):
+                                attacking_piece = True
+                            elif square != '--':
+                                blocking_piece = True
+                    if not attacking_piece or blocking_piece:
+                        moves.append(Move((row, column), (row + direction, column + 1), self.board, is_enpassant=True))
 
     def get_rook_moves(self, row, column, moves):
         piece_pinned, pin_direction = self.is_pinned(row, column)
@@ -229,8 +266,8 @@ class GameState:
                 moves.append(Move((row, column), (row, column + 2), self.board, is_castle=True))
 
     def get_queen_side_castle_moves(self, row, column, moves):
-        if self.is_empty_square(row, column - 1) and self.is_empty_square(row, column - 2) and self.is_empty_square(row,
-                                                                                                                    column - 3):
+        if self.is_empty_square(row, column - 1) and self.is_empty_square(row, column - 2) \
+                and self.is_empty_square(row, column - 3):
             if not self.square_under_attack(row, column - 1) and not self.square_under_attack(row, column - 2):
                 moves.append(Move((row, column), (row, column - 2), self.board, is_castle=True))
 
@@ -271,9 +308,9 @@ class StateLog:
         self.white_to_move = not self.white_to_move
 
     def update_states(self, move):
+        self.move_logs.append(move)
         if move.pieceMoved[1] == 'K':
             self.update_king(move.endRow, move.endColumn)
-        self.move_logs.append(move)
         if move.pieceMoved[1] == 'p' and abs(move.startRow - move.endRow) == 2:
             self.enpassant_possible = ((move.startRow + move.endRow) // 2, move.startColumn)
         else:
@@ -410,7 +447,6 @@ class Move:
         self.endRow, self.endColumn = target_square
         self.pieceMoved = board[self.startRow][self.startColumn]
         self.pieceCaptured = board[self.endRow][self.endColumn]
-        self.isPromotion = False
         self.isPromotion = (self.pieceMoved == 'wp' and target_square[0] == 0) or \
                            (self.pieceMoved == 'bp' and target_square[0] == 7)
         self.promotionPiece = None
@@ -428,7 +464,7 @@ class Move:
                 pass
             else:
                 return end_square
-        return self.pieceMoved[1] + end_square
+        return f"{self.pieceMoved[1]}{'x' if self.pieceCaptured != '--' else ''}{end_square}"
 
     def get_rank_file(self, row, column):
         return self.columnsToFiles[column] + self.rowsToRanks[row]

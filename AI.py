@@ -1,10 +1,11 @@
 import random
 import ChessEngine
+import time
 
 PIECE_SCORE = {"K": 0, "Q": 10, "R": 5, "B": 3, "N": 3, "p": 1, "-": 0}
 CHECKMATE = 1000
 STALEMATE = 0
-DEPTH = 4
+DEPTH = 3
 
 
 def find_random_move(validMoves):
@@ -12,9 +13,11 @@ def find_random_move(validMoves):
 
 def find_best_move(game_state, valid_moves, return_queue):
     global next_move
+    global count
     next_move = None
     random.shuffle(valid_moves)
-    find_move_nega_max_alpha_beta(game_state, valid_moves, DEPTH, -CHECKMATE, CHECKMATE, 1 if game_state.states.white_to_move else -1)
+    find_move_nega_max_alpha_beta(game_state, valid_moves, DEPTH, -CHECKMATE, CHECKMATE,
+                                  1 if game_state.states.white_to_move else -1)
     return_queue.put(next_move)
 
 

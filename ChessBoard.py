@@ -50,7 +50,6 @@ def main():
         if not game_over and not is_human_turn:
             if not ai_thinking:
                 ai_thinking = True
-                print('thinking...')
                 return_queue = Queue()
                 move_finder_process = Process(target=AI.find_best_move, args=(game_state, valid_moves, return_queue))
                 move_finder_process.start()
