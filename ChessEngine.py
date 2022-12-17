@@ -305,8 +305,6 @@ class StateLog:
         self.checkmate = False
         self.stalemate = False
         self.white_to_move = True
-        self._player = 'w'
-        self._opponent = 'b'
         self.is_checked = False
         self.pins = []
         self.checks = []
@@ -314,8 +312,6 @@ class StateLog:
 
     def change_turn(self):
         self.white_to_move = not self.white_to_move
-        self._player = 'b' if self.player == 'w' else 'w'
-        self._opponent = 'w' if self.opponent == 'b' else 'b'
 
     def update_states(self, move):
         self.move_logs.append(move)
@@ -431,11 +427,11 @@ class StateLog:
 
     @property
     def player(self):
-        return self._player
+        return 'w' if self.white_to_move else 'b'
 
     @property
     def opponent(self):
-        return self._opponent
+        return 'b' if self.white_to_move else 'w'
 
     @property
     def opponent_king(self):
