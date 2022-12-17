@@ -64,9 +64,8 @@ def main():
         if move_made:
             if animate:
                 animate_move(game_state.states.move_logs[-1], screen, game_state.board, clock)
-            valid_moves = game_state.get_valid_moves()
             move_made = False
-
+            valid_moves = game_state.get_valid_moves()
         draw_game_state(screen, game_state, valid_moves, player_clicks[0] if player_clicks else (), move_log_font)
 
         if game_state.states.checkmate or game_state.states.stalemate:
@@ -95,7 +94,7 @@ def mouse_handler(game_over, is_human_turn, player_clicks, game_state, valid_mov
                 for move in valid_moves:
                     if (move.startRow, move.startColumn) == start and (
                             move.endRow, move.endColumn) == target:
-                        if move.isPromotion:
+                        if move.promotion:
                             color = 'w' if game_state.states.white_to_move else 'b'
                             move.promotionPiece = input(
                                 "choose a character to promote to 'N', 'Q', 'B', 'R'")
@@ -205,10 +204,10 @@ def animate_move(move, screen, board, clock):
         color = colors[(move.endRow + move.endColumn) % 2]
         end_square = p.Rect(move.endColumn * SQUARE_SIZE, move.endRow * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE)
         p.draw.rect(screen, color, end_square)
-        if move.pieceCaptured != '--':
-            screen.blit(IMAGES[move.pieceCaptured], end_square)
+        if move.piece_captured != '--':
+            screen.blit(IMAGES[move.piece_captured], end_square)
 
-        screen.blit(IMAGES[move.pieceMoved], p.Rect(column * SQUARE_SIZE, row * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE))
+        screen.blit(IMAGES[move._piece_moved], p.Rect(column * SQUARE_SIZE, row * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE))
         p.display.flip()
         clock.tick(60)
 

@@ -2,7 +2,7 @@ import random
 import ChessEngine
 import time
 
-PIECE_SCORE = {"K": 0, "Q": 10, "R": 5, "B": 3, "N": 3, "p": 1, "-": 0}
+PIECE_SCORE = {"K": 0, "Q": 10, "R": 5, "B": 3, "N": 3, "p": 1}
 CHECKMATE = 1000
 STALEMATE = 0
 DEPTH = 3
@@ -57,7 +57,7 @@ def find_move_nega_max(game_state, valid_moves, depth, turn_multiplier):
         return turn_multiplier * score_board(game_state)
     max_score = -CHECKMATE
     for move in valid_moves:
-        if move.isPromotion:
+        if move.promotion:
             move.promotionPiece = ('b' if turn_multiplier == 1 else 'w') + random.choice(('R', 'B', 'N', 'Q'))
         game_state.process_move(move)
         next_moves = game_state.get_valid_moves()
@@ -76,7 +76,7 @@ def find_move_nega_max_alpha_beta(game_state, valid_moves, depth, alpha, beta, t
 
     max_score = -CHECKMATE
     for move in valid_moves:
-        if move.isPromotion:
+        if move.promotion:
             move.promotionPiece = ('b' if turn_multiplier == 1 else 'w') + random.choice(('R', 'B', 'N', 'Q'))
         game_state.process_move(move)
         next_moves = game_state.get_valid_moves()
@@ -85,6 +85,7 @@ def find_move_nega_max_alpha_beta(game_state, valid_moves, depth, alpha, beta, t
             max_score = score
             if depth == DEPTH:
                 next_move = move
+                print(next_move, score)
         game_state.undo_move()
         alpha = max(alpha, max_score)
         if alpha >= beta:
@@ -103,8 +104,9 @@ def score_board(game_state):
     score = 0
     for row in game_state.board:
         for piece in row:
-            piece_type = piece[1]
-            score += (PIECE_SCORE[piece_type] if piece[0] == 'w' else -PIECE_SCORE[piece_type])
+            if piece != '--':
+                piece_type = piece[1]
+                score += (PIECE_SCORE[piece_type] if piece[0] == 'w' else (-PIECE_SCORE[piece_type]))
     return score
 
 
