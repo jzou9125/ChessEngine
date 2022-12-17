@@ -37,8 +37,8 @@ class GameState:
         if move.isEnPassant:
             self.board[move.start_row][move.end_column] = '--'
         elif move.isCastle:
-            rook_position = move.end_column + (-1 if move.end_column - move.startColumn == 2 else 1)
-            corner_position = move.end_column + (1 if move.end_column - move.startColumn == 2 else -2)
+            rook_position = move.end_column + (-1 if move.end_column - move.start_column == 2 else 1)
+            corner_position = move.end_column + (1 if move.end_column - move.start_column == 2 else -2)
             self.board[move.end_row][rook_position] = self.board[move.end_row][corner_position]
             self.board[move.end_row][corner_position] = '--'
         self.states.update_states(move)
@@ -52,8 +52,8 @@ class GameState:
         if last_move.isEnPassant:
             self.board[last_move.start_row][last_move.end_column] = self.states.opponent + 'p'
         elif last_move.isCastle:
-            rook_position = last_move.end_column + (-1 if last_move.end_column - last_move.startColumn == 2 else 1)
-            corner_position = last_move.end_column + (1 if last_move.end_column - last_move.startColumn == 2 else -2)
+            rook_position = last_move.end_column + (-1 if last_move.end_column - last_move.start_column == 2 else 1)
+            corner_position = last_move.end_column + (1 if last_move.end_column - last_move.start_column == 2 else -2)
             self.board[last_move.end_row][corner_position] = self.board[last_move.end_row][rook_position]
             self.board[last_move.end_row][rook_position] = '--'
 
@@ -345,7 +345,7 @@ class StateLog:
             bks = bqs = False
         elif move.moved_piece == 'wR' or move.captured == 'wR':
             considered_row = move.start_row if move.moved_piece == 'wR' else move.end_row
-            considered_column = move.startColumn if move.moved_piece == 'wR' else move.end_column
+            considered_column = move.start_column if move.moved_piece == 'wR' else move.end_column
             if considered_row == 7:
                 if considered_column == 0:
                     wqs = False
@@ -353,7 +353,7 @@ class StateLog:
                     wks = False
         elif move.moved_piece == 'bR' or move.captured == 'bR':
             considered_row = move.start_row if move.moved_piece == 'bR' else move.end_row
-            considered_column = move.startColumn if move.moved_piece == 'bR' else move.end_column
+            considered_column = move.start_column if move.moved_piece == 'bR' else move.end_column
             if considered_row == 0:
                 if considered_column == 0:
                     bqs = False
@@ -370,7 +370,7 @@ class StateLog:
         self.castle_rights = self.castle_rights_logs[-1]
         last_move = self.move_logs[-1]
         if last_move.moved_piece[1] == 'K':
-            self.update_king(last_move.start_row, last_move.startColumn)
+            self.update_king(last_move.start_row, last_move.start_column)
         return self.move_logs.pop()
 
     def check_for_pins_and_checks(self, board):
