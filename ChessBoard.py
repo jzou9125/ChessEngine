@@ -88,16 +88,14 @@ def mouse_handler(game_over, is_human_turn, player_clicks, game_state, valid_mov
         if column >= 8 or player_clicks and (row, column) == player_clicks[0]:
             player_clicks = []
         else:
-            if len(player_clicks) == 0 and game_state.board[row][column][0] == \
-                    ('w' if game_state.states.white_to_move else 'b'):
+            if len(player_clicks) == 0 and game_state.board[row][column][0] == game_state.states.player:
                 player_clicks.append((row, column))
             elif len(player_clicks) == 1:
                 start, target = player_clicks.pop(), (row, column)
                 for move in valid_moves:
-                    if (move.startRow, move.startColumn) == start and (
-                            move.endRow, move.endColumn) == target:
+                    if move.start_square == start and move.end_square == target:
                         if move.promotion:
-                            color = 'w' if game_state.states.white_to_move else 'b'
+                            color = game_state.states.player
                             move.promotionPiece = input(
                                 "choose a character to promote to 'N', 'Q', 'B', 'R'")
                             while move.promotionPiece not in game_state.moveFunctions:
@@ -155,8 +153,8 @@ def highlight_selected_square(screen, game_state, valid_moves, square_selected):
 
             surface.fill(p.Color('yellow'))
             for move in valid_moves:
-                if move.startRow == row and move.startColumn == column:
-                    screen.blit(surface, (SQUARE_SIZE * move.endColumn, SQUARE_SIZE * move.endRow))
+                if move.start_row == row and move.start_column == column:
+                    screen.blit(surface, (SQUARE_SIZE * move.end_column, SQUARE_SIZE * move.end_row))
 
 
 def draw_pieces(screen, board):
@@ -194,17 +192,17 @@ def draw_move_log(screen, game_state, move_log_font):
 
 def animate_move(move, screen, board, clock):
     global colors
-    change_row = move.endRow - move.startRow
-    change_column = move.endColumn - move.startColumn
+    change_row = move.end_row - move.start_row
+    change_column = move.end_column - move.start_column
     frames_per_square = 10
     frame_count = (abs(change_row) + abs(change_column)) * frames_per_square
     for frame in range(frame_count + 1):
-        row, column = (move.startRow + (change_row * frame / frame_count),
-                       move.startColumn + change_column * frame / frame_count)
+        row, column = (move.start_row + (change_row * frame / frame_count),
+                       move.start_column + change_column * frame / frame_count)
         draw_board(screen)
         draw_pieces(screen, board)
-        color = colors[(move.endRow + move.endColumn) % 2]
-        end_square = p.Rect(move.endColumn * SQUARE_SIZE, move.endRow * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE)
+        color = colors[(move.end_row + move.end_column) % 2]
+        end_square = p.Rect(move.end_column * SQUARE_SIZE, move.end_row * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE)
         p.draw.rect(screen, color, end_square)
         if move.captured != '--':
             screen.blit(IMAGES[move.captured], end_square)

@@ -32,36 +32,36 @@ class GameState:
         self.states = StateLog()
 
     def process_move(self, move):
-        self.board[move.startRow][move.startColumn] = '--'
-        self.board[move.endRow][move.endColumn] = move.promotionPiece if move.promotion else move.moved_piece
+        self.board[move.start_row][move.start_column] = '--'
+        self.board[move.end_row][move.end_column] = move.promotionPiece if move.promotion else move.moved_piece
         if move.isEnPassant:
-            self.board[move.startRow][move.endColumn] = '--'
+            self.board[move.start_row][move.end_column] = '--'
         elif move.isCastle:
-            rook_position = move.endColumn + (-1 if move.endColumn - move.startColumn == 2 else 1)
-            corner_position = move.endColumn + (1 if move.endColumn - move.startColumn == 2 else -2)
-            self.board[move.endRow][rook_position] = self.board[move.endRow][corner_position]
-            self.board[move.endRow][corner_position] = '--'
+            rook_position = move.end_column + (-1 if move.end_column - move.startColumn == 2 else 1)
+            corner_position = move.end_column + (1 if move.end_column - move.startColumn == 2 else -2)
+            self.board[move.end_row][rook_position] = self.board[move.end_row][corner_position]
+            self.board[move.end_row][corner_position] = '--'
         self.states.update_states(move)
 
     def undo_move(self):
         if not self.states.move_logs:
             return None
         last_move = self.states.undo()
-        self.board[last_move.endRow][last_move.endColumn] = last_move.captured
-        self.board[last_move.startRow][last_move.startColumn] = last_move.moved_piece
+        self.board[last_move.end_row][last_move.end_column] = last_move.captured
+        self.board[last_move.start_row][last_move.start_column] = last_move.moved_piece
         if last_move.isEnPassant:
-            self.board[last_move.startRow][last_move.endColumn] = self.states.opponent + 'p'
+            self.board[last_move.start_row][last_move.end_column] = self.states.opponent + 'p'
         elif last_move.isCastle:
-            rook_position = last_move.endColumn + (-1 if last_move.endColumn - last_move.startColumn == 2 else 1)
-            corner_position = last_move.endColumn + (1 if last_move.endColumn - last_move.startColumn == 2 else -2)
-            self.board[last_move.endRow][corner_position] = self.board[last_move.endRow][rook_position]
-            self.board[last_move.endRow][rook_position] = '--'
+            rook_position = last_move.end_column + (-1 if last_move.end_column - last_move.startColumn == 2 else 1)
+            corner_position = last_move.end_column + (1 if last_move.end_column - last_move.startColumn == 2 else -2)
+            self.board[last_move.end_row][corner_position] = self.board[last_move.end_row][rook_position]
+            self.board[last_move.end_row][rook_position] = '--'
 
     def get_valid_moves(self):
         possible_moves = []
         self.states.check_for_pins_and_checks(self.board)
         king_row, king_column = self.states.king_position
-        if self.states.is_checked:
+        if self.states.checked:
             if len(self.states.checks) == 1:
                 check = self.states.checks[0]
                 possible_moves = self.get_all_possible_moves()
@@ -78,7 +78,7 @@ class GameState:
                             break
                 for i in range(len(possible_moves) - 1, -1, -1):
                     if possible_moves[i].moved_piece[1] != 'K':
-                        if not (possible_moves[i].endRow, possible_moves[i].endColumn) in valid_squares:
+                        if not (possible_moves[i].end_row, possible_moves[i].end_column) in valid_squares:
                             possible_moves.remove(possible_moves[i])
             else:
                 self.get_king_moves(king_row, king_column, possible_moves)
@@ -238,14 +238,19 @@ class GameState:
                 if end_piece[0] != self.states.player:
                     self.states.update_king(end_row, end_column)
                     self.board[end_row][end_column] = '--'
+                    in_checked, pins, checks = self.states.checked, copy.deepcopy(self.states.pins), copy.deepcopy(
+                        self.states.checks)
                     self.states.check_for_pins_and_checks(self.board)
                     self.board[end_row][end_column] = end_piece
-                    if not self.states.is_checked:
+                    if not self.states.checked:
                         moves.append(Move((row, column), (end_row, end_column), self.board))
                     self.states.update_king(row, column)
+                    self.states.checked = in_checked
+                    self.states.pins = copy.deepcopy(pins)
+                    self.states.checks = copy.deepcopy(checks)
 
     def get_castle_moves(self, row, column, moves):
-        if self.states.is_checked:
+        if self.states.checked:
             return
         if getattr(self.states.castle_rights, self.states.player + "ks"):
             self.get_king_side_castle_moves(row, column, moves)
@@ -257,7 +262,7 @@ class GameState:
         opponent_moves = self.get_all_possible_moves()
         self.states.change_turn()
         for move in opponent_moves:
-            if move.endRow == row and move.endColumn == column:
+            if move.end_row == row and move.end_column == column:
                 return True
         return False
 
@@ -295,6 +300,12 @@ class KingPosition(NamedTuple):
     black_king: tuple
 
 
+class GameStatus(NamedTuple):
+    checked: bool
+    pins: list
+    checks: list
+
+
 class StateLog:
     def __init__(self):
         self.enpassant_possible = ()
@@ -302,8 +313,8 @@ class StateLog:
         self.move_logs = []
         self.castle_rights = CastleRights(True, True, True, True)
         self.castle_rights_logs = [self.castle_rights]
-        self.checkmate = False
-        self.stalemate = False
+        self._checkmate = False
+        self._stalemate = False
         self.white_to_move = True
         self.is_checked = False
         self.pins = []
@@ -316,9 +327,9 @@ class StateLog:
     def update_states(self, move):
         self.move_logs.append(move)
         if move.moved_piece[1] == 'K':
-            self.update_king(move.endRow, move.endColumn)
-        if move.moved_piece[1] == 'p' and abs(move.startRow - move.endRow) == 2:
-            self.enpassant_possible = ((move.startRow + move.endRow) // 2, move.startColumn)
+            self.update_king(move.end_row, move.end_column)
+        if move.moved_piece[1] == 'p' and abs(move.start_row - move.end_row) == 2:
+            self.enpassant_possible = ((move.start_row + move.end_row) // 2, move.start_column)
         else:
             self.enpassant_possible = ()
         self.enpassant_logs.append(self.enpassant_possible)
@@ -333,16 +344,16 @@ class StateLog:
         elif move.moved_piece == 'bK':
             bks = bqs = False
         elif move.moved_piece == 'wR' or move.captured == 'wR':
-            considered_row = move.startRow if move.moved_piece == 'wR' else move.endRow
-            considered_column = move.startColumn if move.moved_piece == 'wR' else move.endColumn
+            considered_row = move.start_row if move.moved_piece == 'wR' else move.end_row
+            considered_column = move.startColumn if move.moved_piece == 'wR' else move.end_column
             if considered_row == 7:
                 if considered_column == 0:
                     wqs = False
                 elif considered_column == 7:
                     wks = False
         elif move.moved_piece == 'bR' or move.captured == 'bR':
-            considered_row = move.startRow if move.moved_piece == 'bR' else move.endRow
-            considered_column = move.startColumn if move.moved_piece == 'bR' else move.endColumn
+            considered_row = move.start_row if move.moved_piece == 'bR' else move.end_row
+            considered_column = move.startColumn if move.moved_piece == 'bR' else move.end_column
             if considered_row == 0:
                 if considered_column == 0:
                     bqs = False
@@ -359,7 +370,7 @@ class StateLog:
         self.castle_rights = self.castle_rights_logs[-1]
         last_move = self.move_logs[-1]
         if last_move.moved_piece[1] == 'K':
-            self.update_king(last_move.startRow, last_move.startColumn)
+            self.update_king(last_move.start_row, last_move.startColumn)
         return self.move_logs.pop()
 
     def check_for_pins_and_checks(self, board):
@@ -370,7 +381,7 @@ class StateLog:
         for j in range(len(directions)):
             change_row, change_column = directions[j]
             possible_pin = ()
-            for i in range(BOARDLENGTH):
+            for i in range(1, BOARDLENGTH):
                 end_row, end_column = start_row + change_row * i, start_col + change_column * i
                 if inside_board(end_row, end_column):
                     end_piece = board[end_row][end_column]
@@ -406,24 +417,49 @@ class StateLog:
                     in_check = True
                     checks.append((end_row, end_column, change_row, change_column))
 
-        self.is_checked = in_check
+        self.checked = in_check
         self.pins = copy.deepcopy(pins)
         self.checks = copy.deepcopy(checks)
 
     def update_mate(self, param):
-        stalemate, checkmate = False, False
+        _stalemate, _checkmate = False, False
         if param == 0:
-            if self.is_checked:
-                checkmate = True
-            else:
-                stalemate = True
-        self.checkmate = checkmate
-        self.stalemate = stalemate
+            _checkmate = self.checked
+            _stalemate = not self.checked
+        self.checkmate = _checkmate
+        self.stalemate = _stalemate
 
     def update_king(self, row, column):
         white_king = (row, column) if self.white_to_move else self.kings_position.white_king
         black_king = (row, column) if not self.white_to_move else self.kings_position.black_king
         self.kings_position = KingPosition(white_king, black_king)
+
+    @property
+    def checked(self):
+        return self.is_checked
+
+    @checked.setter
+    def checked(self, value):
+        if value is bool:
+            self.is_checked = value
+
+    @property
+    def checkmate(self):
+        return self._checkmate
+
+    @checkmate.setter
+    def checkmate(self, value):
+        if value is bool:
+            self.checkmate = value
+
+    @property
+    def stalemate(self):
+        return self._stalemate
+
+    @stalemate.setter
+    def stalemate(self, value):
+        if value is bool:
+            self.stalemate = value
 
     @property
     def player(self):
@@ -446,15 +482,39 @@ class Move:
     columnsToFiles = {0: 'a', 1: 'b', 2: 'c', 3: 'd', 4: 'e', 5: 'f', 6: 'g', 7: 'h'}
 
     def __init__(self, starting_square, target_square, board, is_enpassant=False, is_castle=False):
-        self.startRow, self.startColumn = starting_square
-        self.endRow, self.endColumn = target_square
-        self.piece_moved = board[self.startRow][self.startColumn]
-        self.piece_captured = board[self.endRow][self.endColumn]
-        self.is_promotion = (self.moved_piece == 'wp' and target_square[0] == 0) or \
-                            (self.moved_piece == 'bp' and target_square[0] == 7)
+        self._start_row, self._start_column = starting_square
+        self._end_row, self._end_column = target_square
+        self.piece_moved = board[self._start_row][self._start_column]
+        self.piece_captured = board[self.end_row][self.end_column]
+        self.is_promotion = (self.moved_piece == 'wp' and self.end_row == 0) or \
+                            (self.moved_piece == 'bp' and self.end_row == 7)
         self.promotionPiece = None
         self.isEnPassant = is_enpassant
         self.isCastle = is_castle
+
+    @property
+    def end_square(self):
+        return self.end_row, self.end_column
+
+    @property
+    def end_row(self):
+        return self._end_row
+
+    @property
+    def end_column(self):
+        return self._end_column
+
+    @property
+    def start_square(self):
+        return self.start_row, self.start_column
+
+    @property
+    def start_row(self):
+        return self._start_row
+
+    @property
+    def start_column(self):
+        return self._start_column
 
     @property
     def captured(self):
@@ -470,11 +530,11 @@ class Move:
 
     def __str__(self):
         if self.isCastle:
-            return '0-0' if self.endColumn == 6 else '0-0-0'
-        end_square = self.get_rank_file(self.endRow, self.endColumn)
+            return '0-0' if self.end_column == 6 else '0-0-0'
+        end_square = self.get_rank_file(self.end_row, self.end_column)
         if self.moved_piece[1] == 'p':
             if self.captured != '--':
-                return f"{self.columnsToFiles[self.startColumn]}x{end_square}"
+                return f"{self.columnsToFiles[self.start_column]}x{end_square}"
             elif self.promotion:
                 pass
             else:
