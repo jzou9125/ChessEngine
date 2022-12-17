@@ -346,19 +346,13 @@ class StateLog:
         elif move.moved_piece == 'wR' or move.captured == 'wR':
             considered_row = move.start_row if move.moved_piece == 'wR' else move.end_row
             considered_column = move.start_column if move.moved_piece == 'wR' else move.end_column
-            if considered_row == 7:
-                if considered_column == 0:
-                    wqs = False
-                elif considered_column == 7:
-                    wks = False
+            wqs = not (considered_row == 7 and considered_row == 0)
+            wks = not (considered_row == 7 and considered_column == 7)
         elif move.moved_piece == 'bR' or move.captured == 'bR':
             considered_row = move.start_row if move.moved_piece == 'bR' else move.end_row
             considered_column = move.start_column if move.moved_piece == 'bR' else move.end_column
-            if considered_row == 0:
-                if considered_column == 0:
-                    bqs = False
-                elif considered_column == 7:
-                    bks = False
+            bqs = not (considered_row == 0 and considered_column == 0)
+            bks = not (considered_row == 0 and considered_column == 7)
         self.castle_rights = CastleRights(wks, bks, wqs, bqs)
 
     def undo(self):
