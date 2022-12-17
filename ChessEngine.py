@@ -422,12 +422,8 @@ class StateLog:
         self.checks = copy.deepcopy(checks)
 
     def update_mate(self, param):
-        _stalemate, _checkmate = False, False
-        if param == 0:
-            _checkmate = self.checked
-            _stalemate = not self.checked
-        self.checkmate = _checkmate
-        self.stalemate = _stalemate
+        self.checkmate = param == 0 and self.checked
+        self.stalemate = param == 0 and not self.checked
 
     def update_king(self, row, column):
         white_king = (row, column) if self.white_to_move else self.kings_position.white_king
