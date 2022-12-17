@@ -33,7 +33,7 @@ class GameState:
 
     def process_move(self, move):
         self.board[move.startRow][move.startColumn] = '--'
-        self.board[move.endRow][move.endColumn] = move.promotionPiece if move.promotion else move.piece_moved
+        self.board[move.endRow][move.endColumn] = move.promotionPiece if move.promotion else move.moved_piece
         if move.isEnPassant:
             self.board[move.startRow][move.endColumn] = '--'
         elif move.isCastle:
@@ -47,8 +47,8 @@ class GameState:
         if not self.states.move_logs:
             return None
         last_move = self.states.undo()
-        self.board[last_move.endRow][last_move.endColumn] = last_move.piece_captured
-        self.board[last_move.startRow][last_move.startColumn] = last_move.piece_moved
+        self.board[last_move.endRow][last_move.endColumn] = last_move.captured
+        self.board[last_move.startRow][last_move.startColumn] = last_move.moved_piece
         if last_move.isEnPassant:
             self.board[last_move.startRow][last_move.endColumn] = self.states.opponent + 'p'
         elif last_move.isCastle:
@@ -77,7 +77,7 @@ class GameState:
                         if valid_square[0] == check_row and valid_square[1] == check_column:
                             break
                 for i in range(len(possible_moves) - 1, -1, -1):
-                    if possible_moves[i].piece_moved[1] != 'K':
+                    if possible_moves[i].moved_piece[1] != 'K':
                         if not (possible_moves[i].endRow, possible_moves[i].endColumn) in valid_squares:
                             possible_moves.remove(possible_moves[i])
             else:
@@ -247,9 +247,9 @@ class GameState:
     def get_castle_moves(self, row, column, moves):
         if self.states.is_checked:
             return
-        if getattr(self.states.castle_rights, self.states.player + 'ks'):
+        if getattr(self.states.castle_rights, self.states.player + "ks"):
             self.get_king_side_castle_moves(row, column, moves)
-        if getattr(self.states.castle_rights, self.states.player + 'qs'):
+        if getattr(self.states.castle_rights, self.states.player + "qs"):
             self.get_queen_side_castle_moves(row, column, moves)
 
     def square_under_attack(self, row, column):
@@ -308,16 +308,16 @@ class StateLog:
         self.is_checked = False
         self.pins = []
         self.checks = []
-        self._king_position = KingPosition((7, 4), (0, 4))
+        self.kings_position = KingPosition((7, 4), (0, 4))
 
     def change_turn(self):
         self.white_to_move = not self.white_to_move
 
     def update_states(self, move):
         self.move_logs.append(move)
-        if move.piece_moved[1] == 'K':
+        if move.moved_piece[1] == 'K':
             self.update_king(move.endRow, move.endColumn)
-        if move.piece_moved[1] == 'p' and abs(move.startRow - move.endRow) == 2:
+        if move.moved_piece[1] == 'p' and abs(move.startRow - move.endRow) == 2:
             self.enpassant_possible = ((move.startRow + move.endRow) // 2, move.startColumn)
         else:
             self.enpassant_possible = ()
@@ -328,21 +328,21 @@ class StateLog:
 
     def update_castle_rights(self, move):
         wks, wqs, bks, bqs = self.castle_rights
-        if move.piece_moved == 'wK':
+        if move.moved_piece == 'wK':
             wks = wqs = False
-        elif move.piece_moved == 'bK':
+        elif move.moved_piece == 'bK':
             bks = bqs = False
-        elif move.piece_moved == 'wR' or move.piece_captured == 'wR':
-            considered_row = move.startRow if move.piece_moved == 'wR' else move.endRow
-            considered_column = move.startColumn if move.piece_moved == 'wR' else move.endColumn
+        elif move.moved_piece == 'wR' or move.captured == 'wR':
+            considered_row = move.startRow if move.moved_piece == 'wR' else move.endRow
+            considered_column = move.startColumn if move.moved_piece == 'wR' else move.endColumn
             if considered_row == 7:
                 if considered_column == 0:
                     wqs = False
                 elif considered_column == 7:
                     wks = False
-        elif move.piece_moved == 'bR' or move.piece_captured == 'bR':
-            considered_row = move.startRow if move.piece_moved == 'bR' else move.endRow
-            considered_column = move.startColumn if move.piece_moved == 'bR' else move.endColumn
+        elif move.moved_piece == 'bR' or move.captured == 'bR':
+            considered_row = move.startRow if move.moved_piece == 'bR' else move.endRow
+            considered_column = move.startColumn if move.moved_piece == 'bR' else move.endColumn
             if considered_row == 0:
                 if considered_column == 0:
                     bqs = False
@@ -358,14 +358,14 @@ class StateLog:
         self.castle_rights_logs.pop()
         self.castle_rights = self.castle_rights_logs[-1]
         last_move = self.move_logs[-1]
-        if last_move.piece_moved[1] == 'K':
+        if last_move.moved_piece[1] == 'K':
             self.update_king(last_move.startRow, last_move.startColumn)
         return self.move_logs.pop()
 
     def check_for_pins_and_checks(self, board):
         pins, checks, in_check = [], [], False
         enemy, ally = self.opponent, self.player
-        start_row, start_col = self.opponent_king
+        start_row, start_col = self.king_position
         directions = ROOK_DIRECTIONS + BISHOP_DIRECTIONS
         for j in range(len(directions)):
             change_row, change_column = directions[j]
@@ -421,9 +421,9 @@ class StateLog:
         self.stalemate = stalemate
 
     def update_king(self, row, column):
-        white_king = (row, column) if self.white_to_move else self.king_position
-        black_king = (row, column) if not self.white_to_move else self._king_position.black_king
-        self._king_position = KingPosition(white_king, black_king)
+        white_king = (row, column) if self.white_to_move else self.kings_position.white_king
+        black_king = (row, column) if not self.white_to_move else self.kings_position.black_king
+        self.kings_position = KingPosition(white_king, black_king)
 
     @property
     def player(self):
@@ -434,14 +434,9 @@ class StateLog:
         return 'b' if self.white_to_move else 'w'
 
     @property
-    def opponent_king(self):
-        king = 'white_king' if not self.white_to_move else 'black_king'
-        return getattr(self._king_position, king)
-
-    @property
     def king_position(self):
         king = 'white_king' if self.white_to_move else 'black_king'
-        return getattr(self._king_position, king)
+        return getattr(self.kings_position, king)
 
 
 class Move:
@@ -453,38 +448,38 @@ class Move:
     def __init__(self, starting_square, target_square, board, is_enpassant=False, is_castle=False):
         self.startRow, self.startColumn = starting_square
         self.endRow, self.endColumn = target_square
-        self._piece_moved = board[self.startRow][self.startColumn]
-        self._piece_captured = board[self.endRow][self.endColumn]
-        self._is_promotion = (self._piece_moved == 'wp' and target_square[0] == 0) or \
-                         (self._piece_moved == 'bp' and target_square[0] == 7)
+        self.piece_moved = board[self.startRow][self.startColumn]
+        self.piece_captured = board[self.endRow][self.endColumn]
+        self.is_promotion = (self.moved_piece == 'wp' and target_square[0] == 0) or \
+                            (self.moved_piece == 'bp' and target_square[0] == 7)
         self.promotionPiece = None
         self.isEnPassant = is_enpassant
         self.isCastle = is_castle
 
     @property
-    def piece_captured(self):
-        return self._piece_captured
+    def captured(self):
+        return self.piece_captured
 
     @property
-    def piece_moved(self):
-        return self._piece_moved
+    def moved_piece(self):
+        return self.piece_moved
 
     @property
     def promotion(self):
-        return self._is_promotion
+        return self.is_promotion
 
     def __str__(self):
         if self.isCastle:
             return '0-0' if self.endColumn == 6 else '0-0-0'
         end_square = self.get_rank_file(self.endRow, self.endColumn)
-        if self._piece_moved[1] == 'p':
-            if self.piece_captured != '--':
+        if self.moved_piece[1] == 'p':
+            if self.captured != '--':
                 return f"{self.columnsToFiles[self.startColumn]}x{end_square}"
             elif self.promotion:
                 pass
             else:
                 return end_square
-        return f"{self._piece_moved[1]}{'x' if self.piece_captured != '--' else ''}{end_square}"
+        return f"{self.moved_piece[1]}{'x' if self.captured != '--' else ''}{end_square}"
 
     def get_rank_file(self, row, column):
         return self.columnsToFiles[column] + self.rowsToRanks[row]

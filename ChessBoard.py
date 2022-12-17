@@ -2,6 +2,8 @@ from multiprocessing import Process, Queue
 import pygame as p
 import ChessEngine
 import AI
+import time
+import copy
 
 BOARD_WIDTH = BOARD_HEIGHT = 512
 MOVE_LOG_PANEL_WIDTH = 250
@@ -204,10 +206,10 @@ def animate_move(move, screen, board, clock):
         color = colors[(move.endRow + move.endColumn) % 2]
         end_square = p.Rect(move.endColumn * SQUARE_SIZE, move.endRow * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE)
         p.draw.rect(screen, color, end_square)
-        if move.piece_captured != '--':
-            screen.blit(IMAGES[move.piece_captured], end_square)
+        if move.captured != '--':
+            screen.blit(IMAGES[move.captured], end_square)
 
-        screen.blit(IMAGES[move._piece_moved], p.Rect(column * SQUARE_SIZE, row * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE))
+        screen.blit(IMAGES[move.piece_moved], p.Rect(column * SQUARE_SIZE, row * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE))
         p.display.flip()
         clock.tick(60)
 
