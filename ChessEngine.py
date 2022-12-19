@@ -3,7 +3,9 @@
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 import copy
-from typing import NamedTuple
+import States
+from Move import Move
+from dataclasses import dataclass
 
 BOARDLENGTH = 8
 KNIGHT_DIRECTIONS = ((1, 2), (1, -2), (2, 1), (2, -1), (-2, 1), (-2, -1), (-1, 2), (-1, -2))
@@ -286,86 +288,38 @@ class GameState:
 
     def is_piece_movable(self, pinned, pin_direction, move_direction):
         return not pinned or (pin_direction in (move_direction, (-move_direction[0], -move_direction[1])))
-
-
-class CastleRights(NamedTuple):
-    wks: bool
-    bks: bool
-    wqs: bool
-    bqs: bool
-
-
-class KingPosition(NamedTuple):
-    white_king: tuple
-    black_king: tuple
-
-
-class GameStatus(NamedTuple):
-    checked: bool
-    pins: list
-    checks: list
-
+@dataclass
+class KingPosition():
+    white_king: tuple = (7, 4)
+    black_king: tuple = (0, 4)
 
 class StateLog:
     def __init__(self):
-        self.enpassant_possible = ()
-        self.enpassant_logs = [self.enpassant_possible]
-        self.move_logs = []
-        self.castle_rights = CastleRights(True, True, True, True)
-        self.castle_rights_logs = [self.castle_rights]
+        self.logs = States.StatesLogging()
         self._checkmate = False
         self._stalemate = False
         self.white_to_move = True
         self.is_checked = False
         self.pins = []
         self.checks = []
-        self.kings_position = KingPosition((7, 4), (0, 4))
+        self.kings_position = KingPosition()
 
     def change_turn(self):
         self.white_to_move = not self.white_to_move
 
     def update_states(self, move):
-        self.move_logs.append(move)
+        self.logs.update(move)
         if move.moved_piece[1] == 'K':
             self.update_king(move.end_row, move.end_column)
-        if move.moved_piece[1] == 'p' and abs(move.start_row - move.end_row) == 2:
-            self.enpassant_possible = ((move.start_row + move.end_row) // 2, move.start_column)
-        else:
-            self.enpassant_possible = ()
-        self.enpassant_logs.append(self.enpassant_possible)
-        self.update_castle_rights(move)
-        self.castle_rights_logs.append(self.castle_rights)
         self.change_turn()
-
-    def update_castle_rights(self, move):
-        wks, wqs, bks, bqs = self.castle_rights
-        if move.moved_piece == 'wK':
-            wks = wqs = False
-        elif move.moved_piece == 'bK':
-            bks = bqs = False
-        elif move.moved_piece == 'wR' or move.captured == 'wR':
-            considered_row = move.start_row if move.moved_piece == 'wR' else move.end_row
-            considered_column = move.start_column if move.moved_piece == 'wR' else move.end_column
-            wqs = not (considered_row == 7 and considered_row == 0)
-            wks = not (considered_row == 7 and considered_column == 7)
-        elif move.moved_piece == 'bR' or move.captured == 'bR':
-            considered_row = move.start_row if move.moved_piece == 'bR' else move.end_row
-            considered_column = move.start_column if move.moved_piece == 'bR' else move.end_column
-            bqs = not (considered_row == 0 and considered_column == 0)
-            bks = not (considered_row == 0 and considered_column == 7)
-        self.castle_rights = CastleRights(wks, bks, wqs, bqs)
 
     def undo(self):
         self.update_mate(1)
         self.change_turn()
-        self.enpassant_logs.pop()
-        self.enpassant_possible = self.enpassant_logs[-1]
-        self.castle_rights_logs.pop()
-        self.castle_rights = self.castle_rights_logs[-1]
-        last_move = self.move_logs[-1]
+        last_move = self.logs.undo()
         if last_move.moved_piece[1] == 'K':
             self.update_king(last_move.start_row, last_move.start_column)
-        return self.move_logs.pop()
+        return last_move
 
     def check_for_pins_and_checks(self, board):
         pins, checks, in_check = [], [], False
@@ -420,9 +374,20 @@ class StateLog:
         self.stalemate = param == 0 and not self.checked
 
     def update_king(self, row, column):
-        white_king = (row, column) if self.white_to_move else self.kings_position.white_king
-        black_king = (row, column) if not self.white_to_move else self.kings_position.black_king
-        self.kings_position = KingPosition(white_king, black_king)
+        king = 'white_king' if self.white_to_move else 'black_king'
+        setattr(self.kings_position, king, (row, column))
+
+    @property
+    def enpassant_possible(self):
+        return self.logs.enpassant_possible
+
+    @property
+    def castle_rights(self):
+        return self.logs.castle_rights
+
+    @property
+    def move_logs(self):
+        return self.logs.moves
 
     @property
     def checked(self):
@@ -465,71 +430,3 @@ class StateLog:
         return getattr(self.kings_position, king)
 
 
-class Move:
-    ranksToRows = {'8': 0, '7': 1, '6': 2, '5': 3, '4': 4, '3': 5, '2': 6, '1': 7}
-    rowsToRanks = {0: '8', 1: '7', 2: '6', 3: '5', 4: '4', 5: '3', 6: '2', 7: '1'}
-    filesToColumns = {'a': 0, 'b': 1, 'c': 2, 'd': 3, 'e': 4, 'f': 5, 'g': 6, 'h': 7}
-    columnsToFiles = {0: 'a', 1: 'b', 2: 'c', 3: 'd', 4: 'e', 5: 'f', 6: 'g', 7: 'h'}
-
-    def __init__(self, starting_square, target_square, board, is_enpassant=False, is_castle=False):
-        self._start_row, self._start_column = starting_square
-        self._end_row, self._end_column = target_square
-        self.piece_moved = board[self._start_row][self._start_column]
-        self.piece_captured = board[self.end_row][self.end_column]
-        self.is_promotion = (self.moved_piece == 'wp' and self.end_row == 0) or \
-                            (self.moved_piece == 'bp' and self.end_row == 7)
-        self.promotionPiece = None
-        self.isEnPassant = is_enpassant
-        self.isCastle = is_castle
-
-    @property
-    def end_square(self):
-        return self.end_row, self.end_column
-
-    @property
-    def end_row(self):
-        return self._end_row
-
-    @property
-    def end_column(self):
-        return self._end_column
-
-    @property
-    def start_square(self):
-        return self.start_row, self.start_column
-
-    @property
-    def start_row(self):
-        return self._start_row
-
-    @property
-    def start_column(self):
-        return self._start_column
-
-    @property
-    def captured(self):
-        return self.piece_captured
-
-    @property
-    def moved_piece(self):
-        return self.piece_moved
-
-    @property
-    def promotion(self):
-        return self.is_promotion
-
-    def __str__(self):
-        if self.isCastle:
-            return '0-0' if self.end_column == 6 else '0-0-0'
-        end_square = self.get_rank_file(self.end_row, self.end_column)
-        if self.moved_piece[1] == 'p':
-            if self.captured != '--':
-                return f"{self.columnsToFiles[self.start_column]}x{end_square}"
-            elif self.promotion:
-                pass
-            else:
-                return end_square
-        return f"{self.moved_piece[1]}{'x' if self.captured != '--' else ''}{end_square}"
-
-    def get_rank_file(self, row, column):
-        return self.columnsToFiles[column] + self.rowsToRanks[row]

@@ -2,8 +2,6 @@ from multiprocessing import Process, Queue
 import pygame as p
 import ChessEngine
 import AI
-import time
-import copy
 
 BOARD_WIDTH = BOARD_HEIGHT = 512
 MOVE_LOG_PANEL_WIDTH = 250
