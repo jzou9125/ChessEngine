@@ -13,7 +13,7 @@ class BoardTile:
     def __str__(self):
         return self.board_value
 
-    def capturable(self, color):
+    def capturable_by(self, color):
         return color != self.color
 
     @property
@@ -37,6 +37,7 @@ class BoardTile:
 @dataclass
 class Board:
     board: list[list[BoardTile]] = field(default_factory=list)
+
 
     def __post_init__(self):
         self.board = Board.generate_board()

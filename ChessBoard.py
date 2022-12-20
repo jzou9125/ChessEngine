@@ -66,8 +66,8 @@ def main():
         if move_made:
             if animate:
                 animate_move(game_state.states.move_logs[-1], screen, game_state.board, clock)
-            move_made = False
             valid_moves = game_state.get_valid_moves()
+            move_made = False
         draw_game_state(screen, game_state, valid_moves, player_clicks[0] if player_clicks else (), move_log_font)
 
         if game_state.states.checkmate or game_state.states.stalemate:
