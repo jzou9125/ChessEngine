@@ -18,6 +18,7 @@ BISHOP_DIRECTIONS = ((1, 1), (-1, -1), (1, -1), (-1, 1))
 def inside_board(row, column):
     return row in range(BOARDLENGTH) and column in range(BOARDLENGTH)
 
+
 @dataclass
 class Direction:
     row: int
@@ -30,11 +31,13 @@ class Direction:
         self.generator_field = self.travel_in_direction()
 
     def travel_in_direction(self):
+        new_row = self.row + self.direction[0]
+        new_column = self.column + self.direction[1]
+        while new_row in range(BOARDLENGTH) and new_column in range(BOARDLENGTH):
+            yield self.count, new_row, new_column
+            new_row += self.direction[0]
+            new_column += self.direction[1]
         self.count += 1
-        self.row += self.direction[0]
-        self.column += self.direction[1]
-        if self.row in range(BOARDLENGTH) and self.column in range(BOARDLENGTH):
-            yield self.count, self.row, self.column
 
     @property
     def single_pass(self):
@@ -53,9 +56,18 @@ class Direction:
 @dataclass
 class PinnedDirection(Direction):
     pinned: bool = False
-    pin_direction: list[tuple] = field(default_factory=list)
+    pin_direction: tuple = ()
 
+    def movable(self):
+        print(self.direction, self.pin_direction)
+        if self.direction in self.pin_directions:
+            yield from self.generator_field
 
+    @property
+    def pin_directions(self):
+        if self.pinned:
+            return self.pin_direction, (-self.pin_direction[0], -self.pin_direction[1])
+        return [self.direction]
 
 class GameState:
     def __init__(self):
@@ -143,7 +155,7 @@ class GameState:
         board = self.board
         if board.get(row + direction, column - 1).color == self.states.opponent:
             moves.append(Move(board.get(row, column), board.get(row + direction, column - 1), "", ""))
-        elif (row+direction, column - 1) == self.states.enpassant_possible:
+        elif (row + direction, column - 1) == self.states.enpassant_possible:
             self.enpassant_left_check(row, column, direction, moves)
 
     def add_pawn_right_move(self, row, column, direction, moves):
@@ -178,7 +190,7 @@ class GameState:
         king_row, king_column = self.states.king_position
         blocking_piece = attacking_piece = False
         board = self.board
-        for i in range(BOARDLENGTH-1, 0, -1):
+        for i in range(BOARDLENGTH - 1, 0, -1):
             if any(king_column + difference in (column, column + 1, king_column) for difference in (-i, i)):
                 continue
             if king_column - i >= 0 and not board.get(row, king_column - i).is_empty:
@@ -196,9 +208,8 @@ class GameState:
 
     def get_rook_moves(self, row, column, moves):
         pinned, pin_direction = self.is_pinned(row, column)
-        # for generator in map(lambda direction: Direction(row, column, direction), ROOK_DIRECTIONS):
-        for change_row, change_column in self.pinned_direction_generator(pinned, pin_direction, ROOK_DIRECTIONS):
-            for end_row, end_column in self.direction_generator(row, column, change_row, change_column):
+        for generator in map(lambda delta: PinnedDirection(row, column, delta, pinned=pinned, pin_direction=pin_direction), ROOK_DIRECTIONS):
+            for _, end_row, end_column in generator.movable():
                 if self.board.get(end_row, end_column).is_empty:
                     moves.append(Move(self.board.get(row, column), self.board.get(end_row, end_column), "", ""))
                 elif self.board.get(end_row, end_column).capturable_by(self.states.player):
@@ -297,6 +308,7 @@ class GameState:
                 yield direction
             elif pin_direction in (direction, (-direction[0], -direction[1])):
                 yield direction
+
     def direction_generator(self, start_row, start_column, change_row, change_column):
         while start_row + change_row in range(BOARDLENGTH) and start_column + change_column in range(BOARDLENGTH):
             start_row, start_column = start_row + change_row, start_column + change_column
@@ -307,6 +319,7 @@ class GameState:
 class KingPosition:
     white_king: tuple = (7, 4)
     black_king: tuple = (0, 4)
+
 
 class State:
     def __init__(self):
