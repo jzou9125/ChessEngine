@@ -1,6 +1,7 @@
 from multiprocessing import Process, Queue
 import pygame as p
 import ChessEngine
+from Move import PromotionMove
 import AI
 
 BOARD_WIDTH = BOARD_HEIGHT = 512
@@ -10,6 +11,7 @@ DIMENSION = 8
 SQUARE_SIZE = BOARD_HEIGHT // DIMENSION
 MAX_FPS = 15
 IMAGES = {}
+
 
 
 def load_images():
@@ -86,17 +88,17 @@ def mouse_handler(game_over, is_human_turn, player_clicks, game_state, valid_mov
         if column >= 8 or player_clicks and (row, column) == player_clicks[0]:
             player_clicks = []
         else:
-            if len(player_clicks) == 0 and game_state.board[row][column].color == game_state.states.player:
+            if len(player_clicks) == 0 and game_state.board.get(row, column).color == game_state.states.player:
                 player_clicks.append((row, column))
             elif len(player_clicks) == 1:
                 start, target = player_clicks.pop(), (row, column)
                 for move in valid_moves:
                     if move.start_square == start and move.end_square == target:
-                        if move.promotion:
+                        if isinstance(move, PromotionMove):
                             color = game_state.states.player
                             move.promotionPiece = input(
                                 "choose a character to promote to 'N', 'Q', 'B', 'R'")
-                            while move.promotionPiece not in game_state.moveFunctions:
+                            while move.promotionPiece not in game_state.move_functions:
                                 move.promotionPiece = input(
                                     "choose a character to promote to 'N', 'Q', 'B', 'R'")
                             move.promotionPiece = color + move.promotionPiece
@@ -143,7 +145,7 @@ def draw_board(screen):
 def highlight_selected_square(screen, game_state, valid_moves, square_selected):
     if square_selected != ():
         row, column = square_selected
-        if game_state.board[row][column].color == game_state.states.player:
+        if game_state.board.get(row, column).color == game_state.states.player:
             surface = p.Surface((SQUARE_SIZE, SQUARE_SIZE))
             surface.set_alpha(100)
             surface.fill(p.Color('blue'))
@@ -158,7 +160,7 @@ def highlight_selected_square(screen, game_state, valid_moves, square_selected):
 def draw_pieces(screen, board):
     for row in range(DIMENSION):
         for column in range(DIMENSION):
-            piece = board[row][column]
+            piece = board.get(row, column)
             if piece.board_value != '--':
                 screen.blit(IMAGES[piece.board_value], p.Rect(column * SQUARE_SIZE, row * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE))
 

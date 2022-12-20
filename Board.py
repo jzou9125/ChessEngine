@@ -13,6 +13,9 @@ class BoardTile:
     def __str__(self):
         return self.board_value
 
+    def capturable(self, color):
+        return color != self.color
+
     @property
     def is_empty(self):
         return self.board_value == '--'
@@ -26,6 +29,8 @@ class BoardTile:
         self._board_value = value
         self.color = value[0]
         self.chess_piece = value[1]
+
+
 
 
 

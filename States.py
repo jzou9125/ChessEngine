@@ -24,7 +24,7 @@ class StatesLogging:
 
     def update(self, move):
         self.moves.append(move)
-        if move.moved_piece[1] == 'p' and abs(move.start_row - move.end_row) == 2:
+        if move.piece_moved[1] == 'p' and abs(move.start_row - move.end_row) == 2:
             self.enpassant_possible = ((move.start_row + move.end_row) // 2, move.start_column)
         else:
             self.enpassant_possible = ()
@@ -37,22 +37,23 @@ class StatesLogging:
         self.castle_rights_logs.pop()
         self.enpassant_possible = self.enpassant_logs[-1]
         self.castle_rights = self.castle_rights_logs[-1]
+        self.moves[-1].undo()
         return self.moves.pop()
 
     def update_castle_rights(self, move):
         wks, wqs, bks, bqs = self.castle_rights
-        if move.moved_piece == 'wK':
+        if move.piece_moved == 'wK':
             wks = wqs = False
-        elif move.moved_piece == 'bK':
+        elif move.piece_moved == 'bK':
             bks = bqs = False
-        elif move.moved_piece == 'wR' or move.captured == 'wR':
-            considered_row = move.start_row if move.moved_piece == 'wR' else move.end_row
-            considered_column = move.start_column if move.moved_piece == 'wR' else move.end_column
+        elif move.piece_moved == 'wR' or move.captured == 'wR':
+            considered_row = move.start_row if move.piece_moved == 'wR' else move.end_row
+            considered_column = move.start_column if move.piece_moved == 'wR' else move.end_column
             wqs = not (considered_row == 7 and considered_row == 0)
             wks = not (considered_row == 7 and considered_column == 7)
-        elif move.moved_piece == 'bR' or move.captured == 'bR':
-            considered_row = move.start_row if move.moved_piece == 'bR' else move.end_row
-            considered_column = move.start_column if move.moved_piece == 'bR' else move.end_column
+        elif move.piece_moved == 'bR' or move.captured == 'bR':
+            considered_row = move.start_row if move.piece_moved == 'bR' else move.end_row
+            considered_column = move.start_column if move.piece_moved == 'bR' else move.end_column
             bqs = not (considered_row == 0 and considered_column == 0)
             bks = not (considered_row == 0 and considered_column == 7)
         self.castle_rights = CastleRights(wks, bks, wqs, bqs)

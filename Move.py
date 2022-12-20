@@ -1,6 +1,7 @@
+import dataclasses
 from dataclasses import dataclass
+from Board import BoardTile
 
-from Board import BoardTile, field
 
 @dataclass
 class Move:
@@ -11,42 +12,33 @@ class Move:
 
     starting_tile: BoardTile
     ending_tile: BoardTile
-    is_enpasant: bool = False
-    is_castle: bool = False
-    is_promotion: bool = False
-    promotion_piece: str = ""
-    piece_moved: str = ""
-    piece_captured: str = ""
-    special_tile: BoardTile = field(default_factory=BoardTile)
+    piece_captured: str
+    piece_moved: str
 
     def __post_init__(self):
-        self.piece_captured = self.ending_tile.chess_piece
-        self.piece_moved = self.starting_tile.chess_piece
+        self.piece_captured = self.ending_tile.board_value
+        self.piece_moved = self.starting_tile.board_value
 
-    def process_move(self, move):
-        self.board.get(move.start_row, move.start_column).board_value = '--'
-        self.board.get(move.end_row,
-                       move.end_column).board_value = move.promotionPiece if move.promotion else move.moved_piece
-        if move.isEnPassant:
-            self.board.get(move.start_row, move.end_column).board_value = '--'
-        elif move.isCastle:
-            rook_position = move.end_column + (-1 if move.end_column - move.start_column == 2 else 1)
-            corner_position = move.end_column + (1 if move.end_column - move.start_column == 2 else -2)
-            self.board.get(move.end_row, rook_position).board_value = self.board.get(move.end_row,
-                                                                                     corner_position).board_value
-            self.board.get(move.end_row, corner_position).board_value = '--'
-        self.states.update_states(move)
     def process(self):
-        self.ending_tile.chess_piece = self.promotion_piece if self.is_promotion else self.piece_moved
-        self.starting_tile.chess_piece = '--'
-        if self.is_enpasant:
+        self.ending_tile.board_value = self.piece_moved
+        self.starting_tile.board_value = '--'
 
+    def undo(self):
+        self.starting_tile.board_value = self.piece_moved
+        self.ending_tile.board_value = self.piece_captured
 
+    @property
+    def moved_king(self):
+        return self.piece_moved[1] == 'K' or self.piece_captured[1] == 'K'
 
+    @property
+    def moved_pawn(self):
+        return self.piece_moved[1] == 'p'
 
     @property
     def end_row(self):
         return self.ending_tile.row
+
     @property
     def end_column(self):
         return self.ending_tile.column
@@ -71,22 +63,66 @@ class Move:
     def captured(self):
         return self.piece_captured
 
-    @property
-    def moved_piece(self):
-        return self.piece_moved
-
     def __str__(self):
-        if self.is_castle:
-            return '0-0' if self.end_column == 6 else '0-0-0'
         end_square = self.get_rank_file(self.end_row, self.end_column)
-        if self.moved_piece[1] == 'p':
+        if self.piece_moved[1] == 'p':
             if self.captured != '--':
                 return f"{self.columnsToFiles[self.start_column]}x{end_square}"
-            elif self.is_promotion:
-                pass
             else:
                 return end_square
-        return f"{self.moved_piece[1]}{'x' if self.captured != '--' else ''}{end_square}"
+        return f"{self.piece_moved[1]}{'x' if self.captured != '--' else ''}{end_square}"
 
     def get_rank_file(self, row, column):
         return self.columnsToFiles[column] + self.rowsToRanks[row]
+
+
+@dataclass
+class EnpassantMove(Move):
+    enpassant_tile: BoardTile
+
+    def __post_init__(self):
+        self.piece_captured = self.enpassant_tile.board_value
+        self.piece_moved = self.starting_tile.board_value
+
+    def process(self):
+        self.starting_tile.board_value = "--"
+        self.ending_tile.board_value = self.piece_moved
+        self.enpassant_tile.board_value = "--"
+
+    def undo(self):
+        self.starting_tile.board_value = self.piece_moved
+        self.enpassant_tile.board_value = self.piece_captured
+        self.ending_tile.board_value = '--'
+
+    def __str__(self):
+        return f"{Move.columnsToFiles[self.start_row]}x{Move.columnsToFiles[self.end_row]}{self.end_column} e.p."
+
+
+@dataclass
+class CastleMove(Move):
+    rook_original_tile: BoardTile
+    rook_target_tile: BoardTile
+
+    def __post_init__(self):
+        self.piece_moved = self.starting_tile.board_value
+        self.piece_captured = self.rook_original_tile.board_value
+
+    def process(self):
+        self.rook_target_tile.board_value = self.piece_captured
+        self.rook_original_tile.board_value = '--'
+        self.starting_tile.board_value = '--'
+        self.ending_tile.board_value = self.piece_moved
+
+    def undo(self):
+        self.starting_tile.board_value = self.piece_moved
+        self.rook_original_tile.board_value = self.piece_captured
+        self.rook_target_tile.board_value = '--'
+        self.ending_tile.board_value = '--'
+
+    def __str__(self):
+        return '0-0' if self.rook_original_tile.column == 7 else '0-0-0'
+
+
+@dataclass
+class PromotionMove(Move):
+    pass
