@@ -204,8 +204,8 @@ def animate_move(move, screen, board, clock):
         color = colors[(move.end_row + move.end_column) % 2]
         end_square = p.Rect(move.end_column * SQUARE_SIZE, move.end_row * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE)
         p.draw.rect(screen, color, end_square)
-        if move.captured != '--':
-            screen.blit(IMAGES[move.captured], end_square)
+        if move.piece_captured != '--':
+            screen.blit(IMAGES[move.piece_captured], end_square)
 
         screen.blit(IMAGES[move.piece_moved], p.Rect(column * SQUARE_SIZE, row * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE))
         p.display.flip()

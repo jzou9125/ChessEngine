@@ -59,18 +59,14 @@ class Move:
     def start_square(self):
         return self.start_row, self.start_column
 
-    @property
-    def captured(self):
-        return self.piece_captured
-
     def __str__(self):
         end_square = self.get_rank_file(self.end_row, self.end_column)
         if self.piece_moved[1] == 'p':
-            if self.captured != '--':
+            if self.piece_captured != '--':
                 return f"{self.columnsToFiles[self.start_column]}x{end_square}"
             else:
                 return end_square
-        return f"{self.piece_moved[1]}{'x' if self.captured != '--' else ''}{end_square}"
+        return f"{self.piece_moved[1]}{'x' if self.piece_captured != '--' else ''}{end_square}"
 
     def get_rank_file(self, row, column):
         return self.columnsToFiles[column] + self.rowsToRanks[row]

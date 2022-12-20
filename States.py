@@ -41,21 +41,15 @@ class StatesLogging:
         return self.moves.pop()
 
     def update_castle_rights(self, move):
-        wks, wqs, bks, bqs = self.castle_rights
-        if move.piece_moved == 'wK':
-            wks = wqs = False
-        elif move.piece_moved == 'bK':
-            bks = bqs = False
-        elif move.piece_moved == 'wR' or move.captured == 'wR':
-            considered_row = move.start_row if move.piece_moved == 'wR' else move.end_row
-            considered_column = move.start_column if move.piece_moved == 'wR' else move.end_column
-            wqs = not (considered_row == 7 and considered_row == 0)
-            wks = not (considered_row == 7 and considered_column == 7)
-        elif move.piece_moved == 'bR' or move.captured == 'bR':
-            considered_row = move.start_row if move.piece_moved == 'bR' else move.end_row
-            considered_column = move.start_column if move.piece_moved == 'bR' else move.end_column
-            bqs = not (considered_row == 0 and considered_column == 0)
-            bks = not (considered_row == 0 and considered_column == 7)
-        self.castle_rights = CastleRights(wks, bks, wqs, bqs)
+        player = 'w' if len(self.castle_rights_logs) % 2 else 'b'
+        dictionary = self.castle_rights._asdict()
+        if move.piece_moved[1] == 'K':
+            dictionary[player+'ks'] = False
+            dictionary[player+'qs'] = False
+        elif 'R' in move.piece_moved + move.piece_captured:
+            if 7 in (move.start_column, move.end_column):
+                dictionary[player+'ks'] = False
+            else:
+                dictionary[player+'qs'] = False
 
-
+        self.castle_rights = CastleRights(*dictionary.values())
