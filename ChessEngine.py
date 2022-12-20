@@ -122,23 +122,36 @@ class GameState:
     def get_pawn_moves(self, row, column, moves):
         piece_pinned, pin_direction = self.is_pinned(row, column)
         direction = -1 if self.states.white_to_move else 1
-        double_jump = 6 if self.states.white_to_move else 1
-        board = self.board
 
-        if self.board.get(row + direction, column).is_empty and (not piece_pinned or (1, 0) == pin_direction):
+        if not piece_pinned or pin_direction in ((-direction, 0), (direction, 0)):
+            self.add_pawn_forward_move(row, column, direction, moves)
+        if column > 0 and (not piece_pinned or pin_direction in ((0, -1), (0, 1))):
+            self.add_pawn_left_move(row, column, direction, moves)
+        if column + 1 < BOARDLENGTH and (not piece_pinned or pin_direction in ((0, 1), (0, -1))):
+            self.add_pawn_right_move(row, column, direction, moves)
+
+    def add_pawn_forward_move(self, row, column, direction, moves):
+        starting_row_for_pawns = 6 if self.states.white_to_move else 1
+        forward_by_two = row + direction * 2
+        board = self.board
+        if board.get(row + direction, column).is_empty:
             moves.append(Move(board.get(row, column), board.get(row + direction, column), "", ""))
-            if row == double_jump and self.board.get(row + direction * 2, column).is_empty:
-                moves.append(Move(board.get(row, column), board.get(row + direction * 2, column), "", ""))
-        if column - 1 >= 0 and (not piece_pinned or (0, -1) == pin_direction):
-            if board.get(row + direction, column - 1).color == self.states.opponent:
-                moves.append(Move(board.get(row, column), board.get(row + direction, column - 1), "", ""))
-            if (row + direction, column - 1) == self.states.enpassant_possible:
-                self.enpassant_left_check(row, column, direction, moves)
-        if column + 1 < BOARDLENGTH and (not piece_pinned or (0, 1) == pin_direction):
-            if board.get(row + direction, column + 1).color == self.states.opponent:
-                moves.append(Move(board.get(row, column), board.get(row + direction, column + 1), "", ""))
-            if (row + direction, column + 1) == self.states.enpassant_possible:
-                self.enpassant_right_check(row, column, direction, moves)
+            if row == starting_row_for_pawns and self.board.get(forward_by_two, column).is_empty:
+                moves.append(Move(board.get(row, column), board.get(forward_by_two, column), "", ""))
+
+    def add_pawn_left_move(self, row, column, direction, moves):
+        board = self.board
+        if board.get(row + direction, column - 1).color == self.states.opponent:
+            moves.append(Move(board.get(row, column), board.get(row + direction, column - 1), "", ""))
+        elif (row+direction, column - 1) == self.states.enpassant_possible:
+            self.enpassant_left_check(row, column, direction, moves)
+
+    def add_pawn_right_move(self, row, column, direction, moves):
+        board = self.board
+        if board.get(row + direction, column + 1).color == self.states.opponent:
+            moves.append(Move(board.get(row, column), board.get(row + direction, column + 1), "", ""))
+        elif (row + direction, column + 1) == self.states.enpassant_possible:
+            self.enpassant_right_check(row, column, direction, moves)
 
     def enpassant_left_check(self, row, column, direction, moves):
         king_row, king_column = self.states.king_position
@@ -288,7 +301,6 @@ class GameState:
         while start_row + change_row in range(BOARDLENGTH) and start_column + change_column in range(BOARDLENGTH):
             start_row, start_column = start_row + change_row, start_column + change_column
             yield start_row, start_column
-
 
 
 @dataclass

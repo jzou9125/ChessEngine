@@ -1,0 +1,45 @@
+possible ways:
+break pawn to forward one, forward two, left column, and right column (columns include
+capture and enpasasnt?)
+
+
+def get_pawn_moves(self, row, column, moves):
+    piece_pinned, pin_direction = self.is_pinned(row, column)
+    board = self.board
+    direction = self.get_pawn_direction()
+
+    self.add_pawn_single_move(row, column, direction, piece_pinned, pin_direction, moves)
+    self.add_pawn_double_move(row, column, direction, piece_pinned, pin_direction, moves)
+    self.add_pawn_left_capture(row, column, direction, piece_pinned, pin_direction, moves)
+    self.add_pawn_right_capture(row, column, direction, piece_pinned, pin_direction, moves)
+    self.add_pawn_left_enpassant(row, column, direction, moves)
+    self.add_pawn_right_enpassant(row, column, direction, moves)
+
+def get_pawn_direction(self):
+    if self.states.white_to_move:
+        return -1
+    return 1
+
+def add_pawn_single_move(self, row, column, direction, piece_pinned, pin_direction, moves):
+    if self.board.get(row + direction, column).is_empty and (not piece_pinned or (1, 0) == pin_direction):
+        double_jump = 6 if self.states.white_to_move else 1
+        if row == double_jump and self.board.get(row + direction * 2, column).is_empty:
+            moves.append(Move(self.board.get(row, column), self.board.get(row + direction * 2, column), "", ""))
+        else:
+            moves.append(Move(self.board.get(row, column), self.board.get(row + direction, column), "", ""))
+
+def add_pawn_double_move(self, row, column, direction, piece_pinned, pin_direction, moves):
+    if column - 1 >= 0 and (not piece_pinned or (0, -1) == pin_direction):
+        self.add_pawn_left_capture(row, column, direction, moves)
+    if column + 1 < BOARDLENGTH and (not piece_pinned or (0, 1) == pin_direction):
+        self.add_pawn_right_capture(row, column, direction, moves)
+
+def add_pawn_left_capture(self, row, column, direction, moves):
+    if self.board.get(row + direction, column - 1).color == self.states.opponent:
+        moves.append(Move(self.board.get(row, column), self.board.get(row + direction, column - 1), "", ""))
+
+def add_pawn_right_capture(self, row, column, direction, moves):
+    if self.board.get(row + direction, column + 1).color == self.states.opponent:
+        moves.append(Move(self.board.get(row, column), self.board.get(
+
+examples to make code more readible
