@@ -30,7 +30,6 @@ class StatesLogging:
             self.enpassant_possible = ()
         self.enpassant_logs.append(self.enpassant_possible)
         self.update_castle_rights(move)
-        self.castle_rights_logs.append(self.castle_rights)
 
     def undo(self):
         self.enpassant_logs.pop()
@@ -53,3 +52,4 @@ class StatesLogging:
                 dictionary[player+'qs'] = False
 
         self.castle_rights = CastleRights(*dictionary.values())
+        self.castle_rights_logs.append(self.castle_rights)
