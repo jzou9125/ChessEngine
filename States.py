@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Optional, NamedTuple
+from typing import NamedTuple
 from Move import Move
 
 

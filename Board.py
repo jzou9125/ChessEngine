@@ -45,20 +45,20 @@ class Board:
         return self.board[row][column]
 
     @staticmethod
-    def generate_nrb(board, range, piece):
+    def generate_by_range(board, range, piece):
         for row, column in [(i, j) for i in (0, 7) for j in range]:
             board[row][column].board_value = ('w' if row == 7 else 'b') + piece
 
     @staticmethod
-    def generate_board(BOARDLENGTH=8):
-        board = [[BoardTile(row, column) for column in range(BOARDLENGTH)] for row in range(BOARDLENGTH)]
-        for column in range(BOARDLENGTH):
+    def generate_board(BOARD_LENGTH=8):
+        board = [[BoardTile(row, column) for column in range(BOARD_LENGTH)] for row in range(BOARD_LENGTH)]
+        for column in range(BOARD_LENGTH):
             board[1][column].board_value = 'bp'
             board[6][column].board_value = 'wp'
 
-        Board.generate_nrb(board, (0, 7), 'R')
-        Board.generate_nrb(board, (1, 6), 'N')
-        Board.generate_nrb(board, (2, 5), 'B')
-        Board.generate_nrb(board, (3, 3), 'Q')
-        Board.generate_nrb(board, (4, 4), 'K')
+        Board.generate_by_range(board, (0, 7), 'R')
+        Board.generate_by_range(board, (1, 6), 'N')
+        Board.generate_by_range(board, (2, 5), 'B')
+        Board.generate_by_range(board, (3, 3), 'Q')
+        Board.generate_by_range(board, (4, 4), 'K')
         return board

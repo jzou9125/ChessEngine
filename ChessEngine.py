@@ -349,10 +349,10 @@ class State:
 
     def can_check(self, tiles_away, direction, piece):
         return (piece == 'Q') or (tiles_away == 1 and piece == 'K') or \
-               (piece == 'R' and direction in ((-1, 0), (0, -1), (1, 0), (0, 1))) or \
-               (piece == 'B' and direction in ((1, 1), (1, -1), (-1, 1), (-1, -1))) or \
-               (self.white_to_move and piece == 'p' and direction in ((1, -1), (1, 1))) or \
-               (not self.white_to_move and piece == 'p' and direction in ((-1, 1), (-1, -1)))
+               (piece == 'R' and direction in ROOK_DIRECTIONS) or \
+               (piece == 'B' and direction in BISHOP_DIRECTIONS) or \
+               piece == 'p' and ((self.white_to_move and direction in ((1, -1), (1, 1))) or \
+               (not self.white_to_move and direction in ((-1, 1), (-1, -1))))
 
     def valid_squares_generator(self, row, column, directions):
         for change_row, change_column in directions:
