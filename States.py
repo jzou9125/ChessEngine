@@ -57,3 +57,4 @@ class StatesLogging:
             bks = not (considered_row == 0 and considered_column == 7)
         self.castle_rights = CastleRights(wks, bks, wqs, bqs)
 
+

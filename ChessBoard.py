@@ -86,7 +86,7 @@ def mouse_handler(game_over, is_human_turn, player_clicks, game_state, valid_mov
         if column >= 8 or player_clicks and (row, column) == player_clicks[0]:
             player_clicks = []
         else:
-            if len(player_clicks) == 0 and game_state.board[row][column][0] == game_state.states.player:
+            if len(player_clicks) == 0 and game_state.board[row][column].color == game_state.states.player:
                 player_clicks.append((row, column))
             elif len(player_clicks) == 1:
                 start, target = player_clicks.pop(), (row, column)
@@ -143,7 +143,7 @@ def draw_board(screen):
 def highlight_selected_square(screen, game_state, valid_moves, square_selected):
     if square_selected != ():
         row, column = square_selected
-        if game_state.board[row][column][0] == ('w' if game_state.states.white_to_move else 'b'):
+        if game_state.board[row][column].color == game_state.states.player:
             surface = p.Surface((SQUARE_SIZE, SQUARE_SIZE))
             surface.set_alpha(100)
             surface.fill(p.Color('blue'))
@@ -159,8 +159,8 @@ def draw_pieces(screen, board):
     for row in range(DIMENSION):
         for column in range(DIMENSION):
             piece = board[row][column]
-            if piece != '--':
-                screen.blit(IMAGES[piece], p.Rect(column * SQUARE_SIZE, row * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE))
+            if piece.board_value != '--':
+                screen.blit(IMAGES[piece.board_value], p.Rect(column * SQUARE_SIZE, row * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE))
 
 
 def draw_move_log(screen, game_state, move_log_font):
