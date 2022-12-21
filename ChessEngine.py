@@ -4,10 +4,9 @@
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 import copy
 import States
+from Direction import Direction
 from Move import Move, EnpassantMove, CastleMove
 from Board import Board
-from dataclasses import dataclass, field
-from typing import Generator, Optional
 
 BOARDLENGTH = 8
 KNIGHT_DIRECTIONS = ((1, 2), (1, -2), (2, 1), (2, -1), (-2, 1), (-2, -1), (-1, 2), (-1, -2))
@@ -19,69 +18,12 @@ def inside_board(row, column):
     return row in range(BOARDLENGTH) and column in range(BOARDLENGTH)
 
 
-@dataclass
-class Direction:
-    row: int
-    column: int
-    direction: tuple
-    count: int = 1
-    generator_field: Generator = None
-    inside: bool = True
-    start_row: int = None
-    start_column: int = None
-
-    def __post_init__(self):
-        self.generator_field = self.travel_in_direction()
-        self.start_row = self.row
-        self.start_column = self.column
-        self.row += self.direction[0]
-        self.column += self.direction[1]
-        self.inside = inside_board(self.row, self.column)
-
-    def travel_in_direction(self):
-        while inside_board(self.row, self.column):
-            yield self
-            self.row += self.direction[0]
-            self.column += self.direction[1]
-            self.count += 1
-
-    @property
-    def single_pass(self):
-        for value in self.generator_field:
-            yield value
-            break
-
-    @property
-    def full_coords(self):
-        return self.start_row, self.start_column, self.row, self.column
-
-    @property
-    def current_coords(self):
-        return self.row, self.column
-
-    @property
-    def start_coords(self):
-        return self.start_row, self.start_column
-
-    @property
-    def delta_row(self):
-        return self.direction[0]
-
-    @property
-    def delta_column(self):
-        return self.direction[1]
-
-    @property
-    def deltas(self):
-        return self.direction, (-self.delta_row, - self.delta_column)
-
-
 class GameState:
     def __init__(self):
         self.board = Board()
         self.move_functions = {'p': self.get_pawn_moves, 'R': self.get_rook_moves, 'N': self.get_knight_moves,
                                'B': self.get_bishop_moves, 'Q': self.get_queen_moves, 'K': self.get_king_moves}
-        self.states = State()
+        self.states = States.State()
 
     def process_move(self, move):
         move.process()
@@ -145,9 +87,9 @@ class GameState:
         if not piece_pinned or pin_direction in ((-direction, 0), (direction, 0)):
             self.add_pawn_forward_move(row, column, direction, moves, self.board)
         if column > 0 and (not piece_pinned or pin_direction in ((0, -1), (0, 1))):
-            self.add_pawn_left_move(row, column, direction, moves)
+            self.add_pawn_left_move(row, column, direction, moves, self.board)
         if column + 1 < BOARDLENGTH and (not piece_pinned or pin_direction in ((0, 1), (0, -1))):
-            self.add_pawn_right_move(row, column, direction, moves)
+            self.add_pawn_right_move(row, column, direction, moves, self.board)
 
     def add_pawn_forward_move(self, row, column, direction, moves, board):
         if board.get(row + direction, column).is_empty:
@@ -160,62 +102,38 @@ class GameState:
         if row == starting_row_for_pawns and self.board.get(forward_by_two, column).is_empty:
             moves.append(Move(board.get(row, column), board.get(forward_by_two, column), "", ""))
 
-    def add_pawn_left_move(self, row, column, direction, moves):
-        board = self.board
+    def add_pawn_left_move(self, row, column, direction, moves, board):
         if board.get(row + direction, column - 1).color == self.states.opponent:
             moves.append(Move(board.get(row, column), board.get(row + direction, column - 1), "", ""))
         elif (row + direction, column - 1) == self.states.enpassant_possible:
-            self.enpassant_left_check(row, column, direction, moves)
+            self.enpassant_left_check(row, column, direction, moves, board)
 
-    def add_pawn_right_move(self, row, column, direction, moves):
-        board = self.board
+    def add_pawn_right_move(self, row, column, direction, moves, board):
         if board.get(row + direction, column + 1).color == self.states.opponent:
             moves.append(Move(board.get(row, column), board.get(row + direction, column + 1), "", ""))
         elif (row + direction, column + 1) == self.states.enpassant_possible:
-            self.enpassant_right_check(row, column, direction, moves)
+            self.enpassant_right_check(row, column, direction, moves, board)
 
-    def enpassant_left_check(self, row, column, direction, moves):
+    def enpassant_left_check(self, row, column, direction, moves, board):
         king_row, king_column = self.states.king_position
-        board = self.board
-        blocking_piece = attacking_piece = False
-        for i in range(BOARDLENGTH - 1, 0, -1):
-            if any(king_column + difference in (column, column - 1, king_column) for difference in (-i, i)):
-                continue
-            if king_column - i >= 0 and not board.get(row, king_column - i).is_empty:
-                board_square = board.get(row, king_column - i)
-                attacking_piece = board_square.color == self.states.opponent and board_square.chess_piece in (
-                    'R', 'Q')
-                blocking_piece = board_square.color == self.states.player and not attacking_piece
-            if king_column + i < BOARDLENGTH and not board.get(row, king_column + i).is_empty:
-                board_square = board.get(row, king_column + i)
-                attacking_piece = attacking_piece or board_square == self.states.opponent and board_square.chess_piece in (
-                    'R', 'Q')
-                blocking_piece = board_square.color == self.states.player and not attacking_piece
-
-        if (not attacking_piece or blocking_piece) or king_row != row:
+        left = Direction(row, min(king_column, column - 1), (0, -1))
+        right = Direction(row, max(king_column, column), (0, 1))
+        left_attacking = self.find_capture(left.generator_field, board)
+        right_attacking = self.find_capture(right.generator_field, board)
+        if king_row != row or not left_attacking and not right_attacking:
             moves.append(EnpassantMove(board.get(row, column), board.get(row + direction, column - 1)
                                        , "", "", board.get(row, column - 1)))
 
-    #TODO
-    def enpassant_right_check(self, row, column, direction, moves):
+    # TODO
+    def enpassant_right_check(self, row, column, direction, moves, board):
         king_row, king_column = self.states.king_position
-        blocking_piece = attacking_piece = False
-        board = self.board
-        #
-        #     if any(king_column + difference in (column, column + 1, king_column) for difference in (-i, i)):
-        #         continue
-        #     if king_column - i >= 0 and not board.get(row, king_column - i).is_empty:
-        #         board_square = board.get(row, king_column - i)
-        #         attacking_piece = board_square.color == self.states.opponent and board_square.chess_piece in (
-        #             'R', 'Q')
-        #         blocking_piece = board_square.color == self.states.player and not attacking_piece
-        #     if king_column + i < BOARDLENGTH and not board.get(row, king_column + i).is_empty:
-        #         attacking_piece = attacking_piece or board_square == self.states.opponent and board_square.chess_piece in (
-        #             'R', 'Q')
-        #         blocking_piece = board_square.color == self.states.player and not attacking_piece
-        # if not attacking_piece or blocking_piece or king_row != row:
-        #     moves.append(EnpassantMove(board.get(row, column), board.get(row + direction, column + 1)
-        #                                , "", "", board.get(row, column + 1)))
+        left = Direction(row, min(king_column, column), (0, -1))
+        right = Direction(row, max(king_column, column + 1), (0, 1))
+        left_attacking = self.find_capture(left.generator_field, board)
+        right_attacking = self.find_capture(right.generator_field, board)
+        if king_row != row or not left_attacking and not right_attacking:
+            moves.append(EnpassantMove(board.get(row, column), board.get(row + direction, column + 1)
+                                       , "", "", board.get(row, column + 1)))
 
     def get_rook_moves(self, row, column, moves):
         pinned, pin_direction = self.is_pinned(row, column)
@@ -242,24 +160,16 @@ class GameState:
                 self.add_capturable(direction.generator_field, self.board, moves)
 
     def get_king_moves(self, row, column, moves):
-        for direction in self.direction_list(row, column, ROOK_DIRECTIONS + BISHOP_DIRECTIONS):
-            if not direction.inside: continue
+        for direction in self.direction_list(row, column, ROOK_DIRECTIONS+BISHOP_DIRECTIONS):
+            self.verify_king_move(direction.single_pass, self.board, moves)
+
+    def verify_king_move(self, generator, board, moves):
+        for direction in generator:
             end_row, end_column = direction.current_coords
-            end_square = self.board.get(end_row, end_column)
-            if end_square.color != self.states.player:
-                holder = end_square.board_value
-                self.states.update_king(end_row, end_column)
-                end_square.board_value = '--'
-                in_checked, pins, checks = self.states.checked, copy.deepcopy(self.states.pins), copy.deepcopy(
-                    self.states.checks)
-                self.states.check_for_pins_and_checks(self.board)
-                end_square.board_value = holder
-                if not self.states.checked:
-                    moves.append(Move(self.board.get(row, column), self.board.get(end_row, end_column), "", ""))
-                self.states.update_king(row, column)
-                self.states.checked = in_checked
-                self.states.pins = copy.deepcopy(pins)
-                self.states.checks = copy.deepcopy(checks)
+            board_tile = board.get(end_row, end_column)
+            empty_or_capturable = board_tile.is_empty or board_tile.capturable_by(self.states.player)
+            if empty_or_capturable and not self.square_under_attack(end_row, end_column):
+                moves.append(Move(self.board.get(direction.start_row, direction.start_column), self.board.get(end_row, end_column), "", ""))
 
     def get_castle_moves(self, row, column, moves):
         if self.states.checked:
@@ -286,25 +196,22 @@ class GameState:
     def square_under_attack(self, row, column):
         return self.found_enemy_piece(row, column)
 
-    # TODO
     def found_enemy_piece(self, row, column):
         for directions in self.direction_list(row, column, ROOK_DIRECTIONS + BISHOP_DIRECTIONS):
             if self.find_capture(directions.generator_field, self.board):
                 return True
         for directions in self.direction_list(row, column, KNIGHT_DIRECTIONS):
-            if self.find_capture(directions.generator_field, self.board):
+            if self.find_capture(directions.single_pass, self.board):
                 return True
         return False
 
     def find_capture(self, generator, board):
-        for coordinates in generator:
-            end_tile = board.get(*coordinates.current_coords)
-            if not end_tile.is_empty and end_tile.color == self.states.player:
-                return False
-            if end_tile.color == self.states.opponent and self.states.can_check(coordinates.count,
-                                                                                coordinates.direction,
-                                                                                end_tile.chess_piece):
-                return True
+        for direction in generator:
+            end_tile = board.get(*direction.current_coords)
+            if end_tile.is_empty:
+                continue
+            return self.states.can_check(direction.count, direction.direction, end_tile.chess_piece) and \
+                   self.states.opponent == end_tile.color
         return False
 
     def add_capturable(self, generator, board, moves):

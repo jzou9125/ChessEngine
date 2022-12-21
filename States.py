@@ -1,9 +1,13 @@
 import copy
 from dataclasses import dataclass, field
 from typing import NamedTuple
-from ChessEngine import ROOK_DIRECTIONS, Direction, BISHOP_DIRECTIONS, KNIGHT_DIRECTIONS
 from Move import Move
+from Direction import Direction
 
+
+KNIGHT_DIRECTIONS = ((1, 2), (1, -2), (2, 1), (2, -1), (-2, 1), (-2, -1), (-1, 2), (-1, -2))
+ROOK_DIRECTIONS = ((1, 0), (0, 1), (-1, 0), (0, -1))
+BISHOP_DIRECTIONS = ((1, 1), (-1, -1), (1, -1), (-1, 1))
 
 class CastleRights(NamedTuple):
     wks: bool = True
@@ -92,8 +96,8 @@ class State:
         return (piece == 'Q') or (tiles_away == 1 and piece == 'K') or \
                (piece == 'R' and direction in ROOK_DIRECTIONS) or \
                (piece == 'B' and direction in BISHOP_DIRECTIONS) or \
-               piece == 'p' and ((not self.white_to_move and direction in ((1, -1), (1, 1))) or
-                                 (self.white_to_move and direction in ((-1, 1), (-1, -1))))
+               (tiles_away == 1 and piece == 'p') and ((not self.white_to_move and
+                direction in ((1, -1), (1, 1))) or (self.white_to_move and direction in ((-1, 1), (-1, -1))))
 
     def update_mate(self, length_of_valid_moves):
         self.checkmate = length_of_valid_moves == 0 and self.checked
