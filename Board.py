@@ -14,7 +14,7 @@ class BoardTile:
         return self.board_value
 
     def capturable_by(self, color):
-        return color != self.color
+        return not self.is_empty and color != self.color
 
     @property
     def is_empty(self):
