@@ -115,4 +115,19 @@ class CastleMove(Move):
 
 @dataclass
 class PromotionMove(Move):
-    pass
+    promotion_piece: str = ""
+
+    def process(self):
+        self.ending_tile.board_value = self.promotion_piece
+        self.starting_tile.board_value = '--'
+
+    def undo(self):
+        self.ending_tile.board_value = self.piece_captured
+        self.starting_tile.board_value = self.piece_moved
+
+    def __str__(self):
+        end_square = self.get_rank_file(self.end_row, self.end_column)
+        capture = 'x' if self.piece_captured != '--' else ''
+        if capture:
+            return f"{self.columnsToFiles[self.start_column]}{capture}{end_square}{self.promotion_piece[1]}"
+        return f"{end_square}{self.promotion_piece[1]}"

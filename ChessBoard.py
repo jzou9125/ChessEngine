@@ -96,12 +96,12 @@ def mouse_handler(game_over, is_human_turn, player_clicks, game_state, valid_mov
                     if move.start_square == start and move.end_square == target:
                         if isinstance(move, PromotionMove):
                             color = game_state.states.player
-                            move.promotionPiece = input(
+                            promotion_piece = input(
                                 "choose a character to promote to 'N', 'Q', 'B', 'R'")
-                            while move.promotionPiece not in game_state.move_functions:
-                                move.promotionPiece = input(
+                            while promotion_piece not in ('N', 'Q', 'B', 'R'):
+                                promotion_piece = input(
                                     "choose a character to promote to 'N', 'Q', 'B', 'R'")
-                            move.promotionPiece = color + move.promotionPiece
+                            move.promotion_piece = color + promotion_piece
                         game_state.process_move(move)
                         move_made = True
                         animate = True

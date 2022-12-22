@@ -4,7 +4,7 @@
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 from States import State
 from Direction import Direction
-from Move import Move, EnpassantMove, CastleMove
+from Move import Move, EnpassantMove, CastleMove, PromotionMove
 from Board import Board
 
 BOARDLENGTH = 8
@@ -133,9 +133,11 @@ class GameState:
             self.add_pawn_right_move(row, column, direction, moves, self.board)
 
     def add_pawn_forward_move(self, row, column, direction, moves, board):
-        if board.get(row + direction, column).is_empty:
+        if row+direction in (0, 7):
+            moves.append(PromotionMove(board.get(row, column), board.get(row+direction, column), "", ""))
+        elif board.get(row + direction, column).is_empty:
             moves.append(Move(board.get(row, column), board.get(row + direction, column), "", ""))
-        self.add_pawn_double_move(row, column, direction * 2, moves, board)
+            self.add_pawn_double_move(row, column, direction * 2, moves, board)
 
     def add_pawn_double_move(self, row, column, direction, moves, board):
         starting_row_for_pawns = 6 if self.states.white_to_move else 1
@@ -145,20 +147,26 @@ class GameState:
 
     def add_pawn_left_move(self, row, column, direction, moves, board):
         if board.get(row + direction, column - 1).color == self.states.opponent:
-            moves.append(Move(board.get(row, column), board.get(row + direction, column - 1), "", ""))
+            if row + direction in (0, 7):
+                moves.append(PromotionMove(board.get(row, column), board.get(row + direction, column - 1), "", ""))
+            else:
+                moves.append(Move(board.get(row, column), board.get(row + direction, column - 1), "", ""))
         elif (row + direction, column - 1) == self.states.enpassant_possible:
             self.enpassant_left_check(row, column, direction, moves, board)
 
     def add_pawn_right_move(self, row, column, direction, moves, board):
         if board.get(row + direction, column + 1).color == self.states.opponent:
-            moves.append(Move(board.get(row, column), board.get(row + direction, column + 1), "", ""))
+            if row + direction in (0, 7):
+                moves.append(PromotionMove(board.get(row, column), board.get(row + direction, column + 1), "", ""))
+            else:
+                moves.append(Move(board.get(row, column), board.get(row + direction, column + 1), "", ""))
         elif (row + direction, column + 1) == self.states.enpassant_possible:
             self.enpassant_right_check(row, column, direction, moves, board)
 
     def enpassant_left_check(self, row, column, direction, moves, board):
         king_row, king_column = self.states.king_position
-        left = Direction(row, min(king_column, column - 1), (0, -1))
-        right = Direction(row, max(king_column, column), (0, 1))
+        left = Direction(row, min(king_column, column - 1), (0, -1), self.board)
+        right = Direction(row, max(king_column, column), (0, 1), self.board)
         left_attacking = self.find_capture(left.generator_field, board)
         right_attacking = self.find_capture(right.generator_field, board)
         if king_row != row or not left_attacking and not right_attacking:
@@ -167,8 +175,8 @@ class GameState:
 
     def enpassant_right_check(self, row, column, direction, moves, board):
         king_row, king_column = self.states.king_position
-        left = Direction(row, min(king_column, column), (0, -1))
-        right = Direction(row, max(king_column, column + 1), (0, 1))
+        left = Direction(row, min(king_column, column), (0, -1), self.board)
+        right = Direction(row, max(king_column, column + 1), (0, 1), self.board)
         left_attacking = self.find_capture(left.generator_field, board)
         right_attacking = self.find_capture(right.generator_field, board)
         if king_row != row or not left_attacking and not right_attacking:
