@@ -1,7 +1,4 @@
-from dataclasses import dataclass, field
-
-BOARD_LENGTH = 8
-
+from dataclasses import dataclass, field, InitVar
 
 @dataclass
 class BoardTile:
@@ -34,23 +31,18 @@ class BoardTile:
 
 @dataclass
 class Board:
+    board_size: int
     board: list[list[BoardTile]] = field(default_factory=list)
 
     def __post_init__(self):
-        self.board = Board.generate_board()
+        self.board = self.generate_board()
 
     def get(self, row, column):
         return self.board[row][column]
 
-    @staticmethod
-    def generate_by_range(board, column, piece):
-        for row, column in [(i, j) for i in (0, 7) for j in column]:
-            board[row][column].board_value = ('w' if row == 7 else 'b') + piece
-
-    @staticmethod
-    def generate_board():
-        board = [[BoardTile(row, column) for column in range(BOARD_LENGTH)] for row in range(BOARD_LENGTH)]
-        for column in range(BOARD_LENGTH):
+    def generate_board(self):
+        board = [[BoardTile(row, column) for column in range(self.board_size)] for row in range(self.board_size)]
+        for column in range(self.board_size):
             board[1][column].board_value = 'bp'
             board[6][column].board_value = 'wp'
 
@@ -60,3 +52,8 @@ class Board:
         Board.generate_by_range(board, (3, 3), 'Q')
         Board.generate_by_range(board, (4, 4), 'K')
         return board
+
+    @staticmethod
+    def generate_by_range(board, column, piece):
+        for row, column in [(i, j) for i in (0, 7) for j in column]:
+            board[row][column].board_value = ('w' if row == 7 else 'b') + piece

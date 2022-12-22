@@ -19,7 +19,7 @@ def inside_board(row, column):
 
 class GameState:
     def __init__(self):
-        self.board = Board()
+        self.board = Board(BOARDLENGTH)
         self.move_functions = {'p': self.get_pawn_moves, 'R': self.get_rook_moves, 'N': self.get_knight_moves,
                                'B': self.get_bishop_moves, 'Q': self.get_queen_moves, 'K': self.get_king_moves}
         self.states = State()
@@ -53,7 +53,7 @@ class GameState:
 
     def find_pins(self, row, column):
         pins = []
-        for direction in self.direction_list(row, column, ROOK_DIRECTIONS+BISHOP_DIRECTIONS):
+        for direction in self.direction_list(row, column, ROOK_DIRECTIONS + BISHOP_DIRECTIONS):
             defending_piece = 0
             defending_coord = ()
             for coordinate in direction.generator_field:
@@ -66,7 +66,7 @@ class GameState:
                     if defending_piece > 1:
                         break
                 elif self.can_check(coordinate, direction.direction, tile.chess_piece) and defending_piece == 1:
-                    pins.append(defending_coord+list(direction.direction))
+                    pins.append(defending_coord + list(direction.direction))
                     break
                 else:
                     break
@@ -87,15 +87,14 @@ class GameState:
 
     def find_number_of_attackers(self, row, column):
         count, knight_check, check_directions = 0, False, []
-        for directions in self.direction_list(row, column, ROOK_DIRECTIONS + BISHOP_DIRECTIONS):
+        for directions in self.straight_directions(row, column):
             if self.find_capture(directions.generator_field, self.board):
                 count += 1
                 check_directions.append(directions.direction)
-        for directions in self.direction_list(row, column, KNIGHT_DIRECTIONS):
+        for directions in self.knight_directions(row, column):
             if self.find_capture(directions.single_pass, self.board):
                 count += 1
                 knight_check = True
-                check_directions.append(directions.direction)
         return count, knight_check, check_directions
 
     def is_pinned(self, row, column):
@@ -112,7 +111,8 @@ class GameState:
                (piece == 'R' and direction in ROOK_DIRECTIONS) or \
                (piece == 'B' and direction in BISHOP_DIRECTIONS) or \
                (tiles_away == 1 and piece == 'p') and (not self.states.white_to_move and
-                direction in ((1, -1), (1, 1))) or (self.states.white_to_move and direction in ((-1, 1), (-1, -1)))
+                                                       direction in ((1, -1), (1, 1))) or (
+                           self.states.white_to_move and direction in ((-1, 1), (-1, -1)))
 
     def get_all_possible_moves(self):
         moves = []
@@ -125,7 +125,6 @@ class GameState:
     def get_pawn_moves(self, row, column, moves):
         piece_pinned, pin_direction = self.is_pinned(row, column)
         direction = -1 if self.states.white_to_move else 1
-
         if not piece_pinned or pin_direction in ((-direction, 0), (direction, 0)):
             self.add_pawn_forward_move(row, column, direction, moves, self.board)
         if column > 0 and (not piece_pinned or pin_direction in ((0, -1), (0, 1))):
@@ -197,12 +196,12 @@ class GameState:
 
     def get_queen_moves(self, row, column, moves):
         pinned, pin_direction = self.is_pinned(row, column)
-        for direction in self.direction_list(row, column, ROOK_DIRECTIONS + BISHOP_DIRECTIONS):
+        for direction in self.straight_directions(row, column):
             if not pinned or pin_direction in direction.deltas:
                 self.add_capturable(direction.generator_field, self.board, moves)
 
     def get_king_moves(self, row, column, moves):
-        for direction in self.direction_list(row, column, ROOK_DIRECTIONS + BISHOP_DIRECTIONS):
+        for direction in self.straight_directions(row, column):
             self.verify_king_move(direction.single_pass, self.board, moves)
 
     def verify_king_move(self, generator, board, moves):
@@ -264,6 +263,11 @@ class GameState:
             if end_tile.capturable_by(self.states.player):
                 break
 
-    @staticmethod
-    def direction_list(row, column, directions):
-        return tuple(map(lambda delta: Direction(row, column, delta), directions))
+    def direction_list(self, row, column, directions):
+        return tuple(map(lambda delta: Direction(row, column, delta, board=self.board), directions))
+
+    def straight_directions(self, row, column):
+        return self.direction_list(row, column, ROOK_DIRECTIONS+BISHOP_DIRECTIONS)
+
+    def knight_directions(self, row, column):
+        return self.direction_list(row, column, KNIGHT_DIRECTIONS)

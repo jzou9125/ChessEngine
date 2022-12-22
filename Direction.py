@@ -1,11 +1,6 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field, InitVar
 from typing import Generator
-
-BOARDLENGTH = 8
-
-
-def inside_board(row, column):
-    return row in range(BOARDLENGTH) and column in range(BOARDLENGTH)
+from Board import Board
 
 
 @dataclass
@@ -13,26 +8,33 @@ class Direction:
     row: int
     column: int
     direction: tuple
-    count: int = 1
-    generator_field: Generator = None
-    inside: bool = True
-    start_row: int = None
-    start_column: int = None
+    board: InitVar[Board]
+    board_size: int = field(init=False)
+    generator_field: Generator = field(init=False)
+    inside: bool = field(init=False)
+    start_row: int = field(init=False)
+    start_column: int = field(init=False)
+    count: int = field(init=False)
 
-    def __post_init__(self):
+    def __post_init__(self, board: Board):
         self.generator_field = self.travel_in_direction()
         self.start_row = self.row
         self.start_column = self.column
         self.row += self.direction[0]
         self.column += self.direction[1]
-        self.inside = inside_board(self.row, self.column)
+        self.board_size = board.board_size
+        self.inside = self.inside_board()
+        self.count = 1
 
     def travel_in_direction(self):
-        while inside_board(self.row, self.column):
+        while self.inside_board():
             yield self
             self.row += self.direction[0]
             self.column += self.direction[1]
             self.count += 1
+
+    def inside_board(self):
+        return self.row in range(self.board_size) and self.column in range(self.board_size)
 
     @property
     def single_pass(self):
@@ -53,13 +55,5 @@ class Direction:
         return self.start_row, self.start_column
 
     @property
-    def delta_row(self):
-        return self.direction[0]
-
-    @property
-    def delta_column(self):
-        return self.direction[1]
-
-    @property
     def deltas(self):
-        return self.direction, (-self.delta_row, - self.delta_column)
+        return self.direction, (-self.direction[0], - self.direction[1])

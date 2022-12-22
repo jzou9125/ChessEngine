@@ -2,7 +2,6 @@ import copy
 from dataclasses import dataclass, field
 from typing import NamedTuple
 from Move import Move
-from Direction import Direction
 
 KNIGHT_DIRECTIONS = ((1, 2), (1, -2), (2, 1), (2, -1), (-2, 1), (-2, -1), (-1, 2), (-1, -2))
 ROOK_DIRECTIONS = ((1, 0), (0, 1), (-1, 0), (0, -1))
@@ -33,7 +32,7 @@ class State:
     def change_turn(self):
         self.white_to_move = not self.white_to_move
 
-    def update_states(self, move):
+    def update_states(self, move: Move):
         self.logs.update(move)
         if move.moved_king:
             self.update_king(move.end_row, move.end_column)
@@ -49,11 +48,11 @@ class State:
             self.update_king(last_move.start_row, last_move.start_column)
         return last_move
 
-    def update_mate(self, length_of_valid_moves, checked):
+    def update_mate(self, length_of_valid_moves: int, checked: bool):
         self.checkmate = length_of_valid_moves == 0 and checked
         self.stalemate = length_of_valid_moves == 0 and not checked
 
-    def update_king(self, row, column):
+    def update_king(self, row: int, column: int):
         king = 'white_king' if self.white_to_move else 'black_king'
         setattr(self.kings_position, king, (row, column))
 
@@ -95,7 +94,7 @@ class StatesLogging:
         self.castle_rights_logs = [self.castle_rights]
         self.enpassant_logs = [self.enpassant_possible]
 
-    def update(self, move):
+    def update(self, move: Move):
         self.moves.append(move)
         if move.piece_moved[1] == 'p' and abs(move.start_row - move.end_row) == 2:
             self.enpassant_possible = ((move.start_row + move.end_row) // 2, move.start_column)
@@ -112,7 +111,7 @@ class StatesLogging:
         self.moves[-1].undo()
         return self.moves.pop()
 
-    def update_castle_rights(self, move):
+    def update_castle_rights(self, move: Move):
         player = 'w' if len(self.castle_rights_logs) % 2 else 'b'
         dictionary = self.castle_rights._asdict()
         if move.piece_moved[1] == 'K':
