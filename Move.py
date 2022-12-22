@@ -1,4 +1,3 @@
-import dataclasses
 from dataclasses import dataclass
 from Board import BoardTile
 
@@ -81,14 +80,12 @@ class EnpassantMove(Move):
         self.piece_moved = self.starting_tile.board_value
 
     def process(self):
-        self.starting_tile.board_value = "--"
-        self.ending_tile.board_value = self.piece_moved
+        super().process()
         self.enpassant_tile.board_value = "--"
 
     def undo(self):
-        self.starting_tile.board_value = self.piece_moved
+        super().undo()
         self.enpassant_tile.board_value = self.piece_captured
-        self.ending_tile.board_value = '--'
 
     def __str__(self):
         return f"{Move.columnsToFiles[self.start_row]}x{Move.columnsToFiles[self.end_row]}{self.end_column} e.p."
@@ -104,16 +101,14 @@ class CastleMove(Move):
         self.piece_captured = self.rook_original_tile.board_value
 
     def process(self):
+        super().process()
         self.rook_target_tile.board_value = self.piece_captured
         self.rook_original_tile.board_value = '--'
-        self.starting_tile.board_value = '--'
-        self.ending_tile.board_value = self.piece_moved
 
     def undo(self):
-        self.starting_tile.board_value = self.piece_moved
+        super().undo()
         self.rook_original_tile.board_value = self.piece_captured
         self.rook_target_tile.board_value = '--'
-        self.ending_tile.board_value = '--'
 
     def __str__(self):
         return '0-0' if self.rook_original_tile.column == 7 else '0-0-0'

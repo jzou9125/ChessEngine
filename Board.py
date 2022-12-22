@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+
 BOARD_LENGTH = 8
 
 
@@ -31,13 +32,9 @@ class BoardTile:
         self.chess_piece = value[1]
 
 
-
-
-
 @dataclass
 class Board:
     board: list[list[BoardTile]] = field(default_factory=list)
-
 
     def __post_init__(self):
         self.board = Board.generate_board()
@@ -46,12 +43,12 @@ class Board:
         return self.board[row][column]
 
     @staticmethod
-    def generate_by_range(board, range, piece):
-        for row, column in [(i, j) for i in (0, 7) for j in range]:
+    def generate_by_range(board, column, piece):
+        for row, column in [(i, j) for i in (0, 7) for j in column]:
             board[row][column].board_value = ('w' if row == 7 else 'b') + piece
 
     @staticmethod
-    def generate_board(BOARD_LENGTH=8):
+    def generate_board():
         board = [[BoardTile(row, column) for column in range(BOARD_LENGTH)] for row in range(BOARD_LENGTH)]
         for column in range(BOARD_LENGTH):
             board[1][column].board_value = 'bp'

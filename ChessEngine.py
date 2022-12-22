@@ -2,8 +2,7 @@
 
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-import copy
-import States
+from States import State
 from Direction import Direction
 from Move import Move, EnpassantMove, CastleMove
 from Board import Board
@@ -23,7 +22,8 @@ class GameState:
         self.board = Board()
         self.move_functions = {'p': self.get_pawn_moves, 'R': self.get_rook_moves, 'N': self.get_knight_moves,
                                'B': self.get_bishop_moves, 'Q': self.get_queen_moves, 'K': self.get_king_moves}
-        self.states = States.State()
+        self.states = State()
+        self.pins = []
 
     def process_move(self, move):
         move.process()
@@ -34,43 +34,85 @@ class GameState:
 
     def get_valid_moves(self):
         possible_moves = []
-        self.states.check_for_pins_and_checks(self.board)
         king_row, king_column = self.states.king_position
-        if self.states.checked:
-            if len(self.states.checks) == 1:
-                check = self.states.checks[0]
-                possible_moves = self.get_all_possible_moves()
-                check_row, check_column = check[0], check[1]
-                piece_checking = self.board.get(check_row, check_column)
-                valid_squares = []
-                if piece_checking.chess_piece == 'N':
-                    valid_squares = [(check_row, check_column)]
-                else:
-                    for i in range(1, BOARDLENGTH):
-                        valid_square = (king_row + check[2] * i, king_column + check[3] * i)
-                        valid_squares.append(valid_square)
-                        if valid_square[0] == check_row and valid_square[1] == check_column:
-                            break
-                for i in range(len(possible_moves) - 1, -1, -1):
-                    if possible_moves[i].piece_moved[1] != 'K':
-                        if not (possible_moves[i].end_row, possible_moves[i].end_column) in valid_squares:
-                            possible_moves.remove(possible_moves[i])
-            else:
-                self.get_king_moves(king_row, king_column, possible_moves)
+        self.find_pins(king_row, king_column)
+        count, knight_check, directions = self.find_number_of_attackers(king_row, king_column)
+        if count == 1:
+            possible_tiles = []
+            self.get_possible_tiles(king_row, king_column, directions, possible_tiles)
+            possible_moves = self.get_all_possible_moves()
+            self.prune(possible_tiles, possible_moves)
+        elif count == 2:
+            self.get_king_moves(king_row, king_column, possible_moves)
         else:
             possible_moves = self.get_all_possible_moves()
             self.get_castle_moves(king_row, king_column, possible_moves)
-        self.states.update_mate(len(possible_moves))
+
+        self.states.update_mate(len(possible_moves), count > 0)
         return possible_moves
+
+    def find_pins(self, row, column):
+        pins = []
+        for direction in self.direction_list(row, column, ROOK_DIRECTIONS+BISHOP_DIRECTIONS):
+            defending_piece = 0
+            defending_coord = ()
+            for coordinate in direction.generator_field:
+                tile = self.board.get(*coordinate.current_coords)
+                if tile.is_empty:
+                    continue
+                elif tile.color == self.states.player:
+                    defending_piece += 1
+                    defending_coord = [*coordinate.current_coords]
+                    if defending_piece > 1:
+                        break
+                elif self.can_check(coordinate, direction.direction, tile.chess_piece) and defending_piece == 1:
+                    pins.append(defending_coord+list(direction.direction))
+                    break
+                else:
+                    break
+        self.pins = pins.copy()
+
+    def prune(self, possible_tiles, possible_moves):
+        for i in range(len(possible_moves) - 1, -1, -1):
+            if (possible_moves[i].end_row, possible_moves[i].end_column) not in possible_tiles:
+                possible_moves.remove(possible_moves[i])
+
+    def get_possible_tiles(self, row, column, directions, moves):
+        for direction in self.direction_list(row, column, directions):
+            for iteration in direction.generator_field:
+                tile = self.board.get(*iteration.current_coords)
+                if not tile.is_empty and tile.color == self.states.player:
+                    break
+                moves.append(iteration.current_coords)
+
+    def find_number_of_attackers(self, row, column):
+        count, knight_check, check_directions = 0, False, []
+        for directions in self.direction_list(row, column, ROOK_DIRECTIONS + BISHOP_DIRECTIONS):
+            if self.find_capture(directions.generator_field, self.board):
+                count += 1
+                check_directions.append(directions.direction)
+        for directions in self.direction_list(row, column, KNIGHT_DIRECTIONS):
+            if self.find_capture(directions.single_pass, self.board):
+                count += 1
+                knight_check = True
+                check_directions.append(directions.direction)
+        return count, knight_check, check_directions
 
     def is_pinned(self, row, column):
         pinned, pin_direction = False, ()
-        for pin in self.states.pins:
+        for pin in self.pins:
             if (pin[0], pin[1]) == (row, column):
                 pinned = True
                 pin_direction = pin[2], pin[3]
-                self.states.pins.remove(pin)
+                self.pins.remove(pin)
         return pinned, pin_direction
+
+    def can_check(self, tiles_away, direction, piece):
+        return (piece == 'Q') or (tiles_away == 1 and piece == 'K') or \
+               (piece == 'R' and direction in ROOK_DIRECTIONS) or \
+               (piece == 'B' and direction in BISHOP_DIRECTIONS) or \
+               (tiles_away == 1 and piece == 'p') and (not self.states.white_to_move and
+                direction in ((1, -1), (1, 1))) or (self.states.white_to_move and direction in ((-1, 1), (-1, -1)))
 
     def get_all_possible_moves(self):
         moves = []
@@ -121,10 +163,9 @@ class GameState:
         left_attacking = self.find_capture(left.generator_field, board)
         right_attacking = self.find_capture(right.generator_field, board)
         if king_row != row or not left_attacking and not right_attacking:
-            moves.append(EnpassantMove(board.get(row, column), board.get(row + direction, column - 1)
-                                       , "", "", board.get(row, column - 1)))
+            moves.append(EnpassantMove(board.get(row, column), board.get(row + direction, column - 1),
+                                       "", "", board.get(row, column - 1)))
 
-    # TODO
     def enpassant_right_check(self, row, column, direction, moves, board):
         king_row, king_column = self.states.king_position
         left = Direction(row, min(king_column, column), (0, -1))
@@ -132,8 +173,8 @@ class GameState:
         left_attacking = self.find_capture(left.generator_field, board)
         right_attacking = self.find_capture(right.generator_field, board)
         if king_row != row or not left_attacking and not right_attacking:
-            moves.append(EnpassantMove(board.get(row, column), board.get(row + direction, column + 1)
-                                       , "", "", board.get(row, column + 1)))
+            moves.append(EnpassantMove(board.get(row, column), board.get(row + direction, column + 1),
+                                       "", "", board.get(row, column + 1)))
 
     def get_rook_moves(self, row, column, moves):
         pinned, pin_direction = self.is_pinned(row, column)
@@ -143,7 +184,8 @@ class GameState:
 
     def get_knight_moves(self, row, column, moves):
         pinned, pin_direction = self.is_pinned(row, column)
-        if pinned: return
+        if pinned:
+            return
         for direction in self.direction_list(row, column, KNIGHT_DIRECTIONS):
             self.add_capturable(direction.single_pass, self.board, moves)
 
@@ -160,7 +202,7 @@ class GameState:
                 self.add_capturable(direction.generator_field, self.board, moves)
 
     def get_king_moves(self, row, column, moves):
-        for direction in self.direction_list(row, column, ROOK_DIRECTIONS+BISHOP_DIRECTIONS):
+        for direction in self.direction_list(row, column, ROOK_DIRECTIONS + BISHOP_DIRECTIONS):
             self.verify_king_move(direction.single_pass, self.board, moves)
 
     def verify_king_move(self, generator, board, moves):
@@ -169,11 +211,10 @@ class GameState:
             board_tile = board.get(end_row, end_column)
             empty_or_capturable = board_tile.is_empty or board_tile.capturable_by(self.states.player)
             if empty_or_capturable and not self.square_under_attack(end_row, end_column):
-                moves.append(Move(self.board.get(direction.start_row, direction.start_column), self.board.get(end_row, end_column), "", ""))
+                moves.append(Move(self.board.get(direction.start_row, direction.start_column),
+                                  self.board.get(end_row, end_column), "", ""))
 
     def get_castle_moves(self, row, column, moves):
-        if self.states.checked:
-            return
         if getattr(self.states.castle_rights, self.states.player + "ks"):
             self.get_king_side_castle_moves(row, column, moves)
         if getattr(self.states.castle_rights, self.states.player + "qs"):
@@ -187,8 +228,8 @@ class GameState:
 
     def get_queen_side_castle_moves(self, row, column, moves):
         board = self.board
-        if board.get(row, column - 1).is_empty and board.get(row, column - 2).is_empty and board.get(row,
-                                                                                                     column - 3).is_empty:
+        if board.get(row, column - 1).is_empty and board.get(row, column - 2).is_empty \
+                and board.get(row, column - 3).is_empty:
             if not self.square_under_attack(row, column - 1) and not self.square_under_attack(row, column - 2):
                 moves.append(CastleMove(board.get(row, column), board.get(row, column - 2), "", "",
                                         self.board.get(row, column - 4), self.board.get(row, column - 1)))
@@ -210,8 +251,8 @@ class GameState:
             end_tile = board.get(*direction.current_coords)
             if end_tile.is_empty:
                 continue
-            return self.states.can_check(direction.count, direction.direction, end_tile.chess_piece) and \
-                   self.states.opponent == end_tile.color
+            return self.can_check(direction.count, direction.direction, end_tile.chess_piece) \
+                   and self.states.opponent == end_tile.color
         return False
 
     def add_capturable(self, generator, board, moves):

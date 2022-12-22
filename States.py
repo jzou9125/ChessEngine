@@ -4,10 +4,10 @@ from typing import NamedTuple
 from Move import Move
 from Direction import Direction
 
-
 KNIGHT_DIRECTIONS = ((1, 2), (1, -2), (2, 1), (2, -1), (-2, 1), (-2, -1), (-1, 2), (-1, -2))
 ROOK_DIRECTIONS = ((1, 0), (0, 1), (-1, 0), (0, -1))
 BISHOP_DIRECTIONS = ((1, 1), (-1, -1), (1, -1), (-1, 1))
+
 
 class CastleRights(NamedTuple):
     wks: bool = True
@@ -28,9 +28,6 @@ class State:
         self.checkmate = False
         self.stalemate = False
         self.white_to_move = True
-        self.is_checked = False
-        self.pins = []
-        self.checks = []
         self.kings_position = KingPosition()
 
     def change_turn(self):
@@ -45,63 +42,16 @@ class State:
     def undo(self):
         if not self.logs.moves:
             return
-        self.update_mate(1)
+        self.update_mate(1, False)
         self.change_turn()
         last_move = self.logs.undo()
         if last_move.moved_king:
             self.update_king(last_move.start_row, last_move.start_column)
         return last_move
 
-    def check_for_pins_and_checks(self, board):
-        pins, checks, self.checked = [], [], False
-        start_row, start_column = self.king_position
-        directions = ROOK_DIRECTIONS + BISHOP_DIRECTIONS
-        generators = list(map(lambda delta: Direction(start_row, start_column, delta), directions))
-        for generator in generators:
-            possible_pin = ()
-            for direction in generator.generator_field:
-                tiles_away, end_row, end_column = direction.count, direction.row, direction.column
-                end_piece = board.get(end_row, end_column)
-                if end_piece.color == self.player and end_piece.chess_piece != 'K':
-                    if possible_pin == ():
-                        possible_pin = (end_row, end_column, generator.delta_row, generator.delta_column)
-                    else:
-                        break
-                elif end_piece.color == self.opponent:
-                    if self.can_check(tiles_away, generator.direction, end_piece.chess_piece):
-                        if possible_pin == ():
-                            self.checked = True
-                            checks.append((end_row, end_column, generator.delta_row, generator.delta_column))
-                            break
-                        else:
-                            pins.append(possible_pin)
-                            break
-                    else:
-                        break
-                else:
-                    break
-
-        for generator in map(lambda delta: Direction(start_row, start_column, delta), KNIGHT_DIRECTIONS):
-            for direction in generator.single_pass:
-                end_row, end_column = direction.row, direction.column
-                end_piece = board.get(end_row, end_column)
-                if end_piece.color == self.opponent and end_piece.chess_piece == 'K':
-                    self.checked = True
-                    checks.append((end_row, end_column, generator.delta_row, generator.delta_column))
-
-        self.pins = copy.deepcopy(pins)
-        self.checks = copy.deepcopy(checks)
-
-    def can_check(self, tiles_away, direction, piece):
-        return (piece == 'Q') or (tiles_away == 1 and piece == 'K') or \
-               (piece == 'R' and direction in ROOK_DIRECTIONS) or \
-               (piece == 'B' and direction in BISHOP_DIRECTIONS) or \
-               (tiles_away == 1 and piece == 'p') and ((not self.white_to_move and
-                direction in ((1, -1), (1, 1))) or (self.white_to_move and direction in ((-1, 1), (-1, -1))))
-
-    def update_mate(self, length_of_valid_moves):
-        self.checkmate = length_of_valid_moves == 0 and self.checked
-        self.stalemate = length_of_valid_moves == 0 and not self.checked
+    def update_mate(self, length_of_valid_moves, checked):
+        self.checkmate = length_of_valid_moves == 0 and checked
+        self.stalemate = length_of_valid_moves == 0 and not checked
 
     def update_king(self, row, column):
         king = 'white_king' if self.white_to_move else 'black_king'
@@ -118,15 +68,6 @@ class State:
     @property
     def move_logs(self):
         return self.logs.moves
-
-    @property
-    def checked(self):
-        return self.is_checked
-
-    @checked.setter
-    def checked(self, value):
-        if isinstance(value, bool):
-            self.is_checked = value
 
     @property
     def player(self):
