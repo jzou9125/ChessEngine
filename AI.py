@@ -2,6 +2,8 @@ import random
 import ChessEngine
 import time
 
+from Move import PromotionMove
+
 PIECE_SCORE = {"K": 0, "Q": 10, "R": 5, "B": 3, "N": 3, "p": 1}
 CHECKMATE = 1000
 STALEMATE = 0
@@ -17,7 +19,7 @@ def find_best_move(game_state, valid_moves, return_queue):
     next_move = None
     random.shuffle(valid_moves)
     find_move_nega_max_alpha_beta(game_state, valid_moves, DEPTH, -CHECKMATE, CHECKMATE,
-                                  1 if game_state.states.white_to_move else -1)
+                                  1 if game_state.states.white_turn else -1)
     return_queue.put(next_move)
 
 
@@ -76,11 +78,11 @@ def find_move_nega_max_alpha_beta(game_state, valid_moves, depth, alpha, beta, t
 
     max_score = -CHECKMATE
     for move in valid_moves:
-        if move.promotion:
+        if isinstance(move, PromotionMove):
             move.promotionPiece = ('b' if turn_multiplier == 1 else 'w') + random.choice(('R', 'B', 'N', 'Q'))
         game_state.process_move(move)
         next_moves = game_state.get_valid_moves()
-        score = -find_move_nega_max_alpha_beta(game_state, valid_moves, depth-1, -beta, -alpha, -turn_multiplier)
+        score = -find_move_nega_max_alpha_beta(game_state, next_moves, depth-1, -beta, -alpha, -turn_multiplier)
         if score > max_score:
             max_score = score
             if depth == DEPTH:
@@ -94,7 +96,7 @@ def find_move_nega_max_alpha_beta(game_state, valid_moves, depth, alpha, beta, t
 
 def score_board(game_state):
     if game_state.states.checkmate:
-        if game_state.states.white_to_move:
+        if game_state.states.white_turn:
             return -CHECKMATE
         else:
             return CHECKMATE
@@ -102,11 +104,11 @@ def score_board(game_state):
         return STALEMATE
 
     score = 0
-    for row in game_state.board:
-        for piece in row:
-            if piece != '--':
-                piece_type = piece[1]
-                score += (PIECE_SCORE[piece_type] if piece[0] == 'w' else (-PIECE_SCORE[piece_type]))
+    for row in game_state.board.board:
+        for tile in row:
+            if tile.board_value != '--':
+                piece_type = tile.chess_piece
+                score += (PIECE_SCORE[piece_type] if tile.color[0] == 'w' else (-PIECE_SCORE[piece_type]))
     return score
 
 

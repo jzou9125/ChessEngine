@@ -13,7 +13,6 @@ MAX_FPS = 15
 IMAGES = {}
 
 
-
 def load_images():
     pieces = ['wp', 'wN', 'wR', 'wB', 'wK', 'wQ', 'bp', 'bR', 'bN', 'bB', 'bK', 'bQ']
     for piece in pieces:
@@ -21,7 +20,7 @@ def load_images():
                                           (SQUARE_SIZE, SQUARE_SIZE))
 
 
-def main():
+def main(player_one, player_two):
     p.init()
     screen = p.display.set_mode((BOARD_WIDTH + MOVE_LOG_PANEL_WIDTH, BOARD_HEIGHT))
     load_images()
@@ -33,14 +32,13 @@ def main():
     animate = False
     move_made = False
     player_clicks = []
-    player_one = True
-    player_two = True
     game_over = False
     ai_thinking = False
     move_finder_process = False
     running = True
     while running:
-        is_human_turn = (game_state.states.white_to_move and player_one) or (not game_state.states.white_to_move and player_two)
+        is_human_turn = (game_state.states.white_turn and player_one) or (
+                    not game_state.states.white_turn and player_two)
         for e in p.event.get():
             if e.type == p.QUIT:
                 running = False
@@ -60,12 +58,12 @@ def main():
                 ai_move = return_queue.get()
                 if ai_move is None:
                     ai_move = AI.find_random_move(valid_moves)
-                game_state.process_move(ai_move)
+                game_state.process_ai_move(ai_move)
                 move_made, animate, ai_thinking = True, True, False
 
         if move_made:
             if animate:
-                animate_move(game_state.states.move_logs[-1], screen, game_state.board, clock)
+                animate_move(game_state.logs.moves[-1], screen, game_state.board, clock)
             valid_moves = game_state.get_valid_moves()
             move_made = False
         draw_game_state(screen, game_state, valid_moves, player_clicks[0] if player_clicks else (), move_log_font)
@@ -73,7 +71,7 @@ def main():
         if game_state.states.checkmate or game_state.states.stalemate:
             game_over = True
             text = "Stalemate" if game_state.states.stalemate else "Black wins by checkmate" \
-                if game_state.states.white_to_move else "White wins by checkmate"
+                if game_state.states.white_turn else "White wins by checkmate"
             draw_text(screen, text)
 
         clock.tick(MAX_FPS)
@@ -126,6 +124,7 @@ def keyboard_handler(e, game_state, valid_moves, player_clicks):
         game_over = False
     return move_made, animate, game_over
 
+
 def draw_game_state(screen, game_state, valid_moves, square_selected, move_log_font):
     draw_board(screen)
     highlight_selected_square(screen, game_state, valid_moves, square_selected)
@@ -162,13 +161,14 @@ def draw_pieces(screen, board):
         for column in range(DIMENSION):
             piece = board.get(row, column)
             if piece.board_value != '--':
-                screen.blit(IMAGES[piece.board_value], p.Rect(column * SQUARE_SIZE, row * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE))
+                screen.blit(IMAGES[piece.board_value],
+                            p.Rect(column * SQUARE_SIZE, row * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE))
 
 
 def draw_move_log(screen, game_state, move_log_font):
     move_log_rect = p.Rect(BOARD_WIDTH, 0, MOVE_LOG_PANEL_WIDTH, MOVE_LOG_PANEL_HEIGHT)
     p.draw.rect(screen, p.Color('black'), move_log_rect)
-    move_log = game_state.states.move_logs
+    move_log = game_state.logs.moves
     move_texts = []
     moves_per_row = 3
     for i in range(0, len(move_log), 2):
@@ -219,8 +219,53 @@ def draw_text(screen, text):
                                                                  BOARD_HEIGHT / 2 - text_object.get_height() / 2)
     screen.blit(text_object, text_location)
 
+
 def transform_to_grid(coordinate):
     return coordinate // SQUARE_SIZE
 
+
+one_player_button = p.Rect(100, 100, 200, 50)
+two_player_button = p.Rect(100, 200, 200, 50)
+spectate_button = p.Rect(100, 300, 200, 50)
+
+
+def find_number_of_players():
+    p.init()
+    screen = p.display.set_mode((BOARD_WIDTH, BOARD_HEIGHT))
+    while True:
+        for event in p.event.get():
+            if event.type == p.QUIT:
+                running = False
+            elif event.type == p.MOUSEBUTTONDOWN:
+                # Check if the user clicked on one of the buttons
+                mouse_pos = event.pos
+                if one_player_button.collidepoint(mouse_pos):
+                    return True, False
+                elif two_player_button.collidepoint(mouse_pos):
+                    return True, True
+                elif spectate_button.collidepoint(mouse_pos):
+                    return False, False
+        draw_main_menu(screen)
+        p.display.update()
+
+
+def draw_main_menu(screen: p.display) -> None:
+    font = p.font.Font(None, 32)
+    p.draw.rect(screen, p.Color('red'), one_player_button)
+    one_player_text = font.render('One Player', True, p.Color('Black'))
+    screen.blit(one_player_text, (150, 115))
+
+    # Draw the two player button
+    p.draw.rect(screen, p.Color('Green'), two_player_button)
+    two_player_text = font.render('Two Player', True, p.Color('Black'))
+    screen.blit(two_player_text, (150, 215))
+
+    # Draw the spectate button
+    p.draw.rect(screen, p.Color('blue'), spectate_button)
+    spectate_text = font.render('Spectate', True, p.Color('Black'))
+    screen.blit(spectate_text, (150, 315))
+
+
 if __name__ == '__main__':
-    main()
+    player_one, player_two = find_number_of_players()
+    main(player_one, player_two)
