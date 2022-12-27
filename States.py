@@ -17,103 +17,71 @@ class CastleRights(NamedTuple):
 
 @dataclass
 class KingPosition:
-    white_king: tuple = (7, 4)
-    black_king: tuple = (0, 4)
+    white_king: tuple[int, int] = (7, 4)
+    black_king: tuple[int, int] = (0, 4)
 
 
 class State:
     def __init__(self):
-        self.logs = StatesLogging()
         self.checkmate = False
         self.stalemate = False
-        self.white_to_move = True
-        self.kings_position = KingPosition()
+        self.white_turn = True
 
-    def change_turn(self):
-        self.white_to_move = not self.white_to_move
+    def update(self) -> None:
+        self.white_turn = not self.white_turn
 
-    def update_states(self, move: Move):
-        self.logs.update(move)
-        if move.moved_king:
-            self.update_king(move.end_row, move.end_column)
-        self.change_turn()
-
-    def undo(self):
-        if not self.logs.moves:
-            return
+    def undo(self) -> None:
         self.update_mate(1, False)
-        self.change_turn()
-        last_move = self.logs.undo()
-        if last_move.moved_king:
-            self.update_king(last_move.start_row, last_move.start_column)
-        return last_move
+        self.white_turn = not self.white_turn
 
-    def update_mate(self, length_of_valid_moves: int, checked: bool):
+    def update_mate(self, length_of_valid_moves: int, checked: bool) -> None:
         self.checkmate = length_of_valid_moves == 0 and checked
         self.stalemate = length_of_valid_moves == 0 and not checked
 
-    def update_king(self, row: int, column: int):
-        king = 'white_king' if self.white_to_move else 'black_king'
-        setattr(self.kings_position, king, (row, column))
+    @property
+    def player(self) -> str:
+        return 'w' if self.white_turn else 'b'
 
     @property
-    def enpassant_possible(self):
-        return self.logs.enpassant_possible
-
-    @property
-    def castle_rights(self):
-        return self.logs.castle_rights
-
-    @property
-    def move_logs(self):
-        return self.logs.moves
-
-    @property
-    def player(self):
-        return 'w' if self.white_to_move else 'b'
-
-    @property
-    def opponent(self):
-        return 'b' if self.white_to_move else 'w'
-
-    @property
-    def king_position(self):
-        king = 'white_king' if self.white_to_move else 'black_king'
-        return getattr(self.kings_position, king)
+    def opponent(self) -> str:
+        return 'b' if self.white_turn else 'w'
 
 
 @dataclass
 class StatesLogging:
-    castle_rights: CastleRights = CastleRights()
-    enpassant_possible: tuple = ()
     moves: list[Move] = field(default_factory=list)
     castle_rights_logs: list[CastleRights] = field(default_factory=list)
     enpassant_logs: list[tuple] = field(default_factory=list)
+    kings_position: KingPosition = field(default_factory=KingPosition)
 
     def __post_init__(self):
-        self.castle_rights_logs = [self.castle_rights]
-        self.enpassant_logs = [self.enpassant_possible]
+        self.castle_rights_logs = [CastleRights()]
+        self.enpassant_logs = [()]
 
-    def update(self, move: Move):
+    def update(self, move: Move) -> None:
         self.moves.append(move)
+        if move.moved_king:
+            self.update_king(move.end_row, move.end_column, move.piece_moved[0] == 'w')
         if move.piece_moved[1] == 'p' and abs(move.start_row - move.end_row) == 2:
-            self.enpassant_possible = ((move.start_row + move.end_row) // 2, move.start_column)
+            enpassant_possible = ((move.start_row + move.end_row) // 2, move.start_column)
         else:
-            self.enpassant_possible = ()
-        self.enpassant_logs.append(self.enpassant_possible)
+            enpassant_possible = ()
+        self.enpassant_logs.append(enpassant_possible)
         self.update_castle_rights(move)
 
-    def undo(self):
-        self.enpassant_logs.pop()
-        self.castle_rights_logs.pop()
-        self.enpassant_possible = self.enpassant_logs[-1]
-        self.castle_rights = self.castle_rights_logs[-1]
-        self.moves[-1].undo()
-        return self.moves.pop()
+    def undo(self) -> None:
+        if self.moves:
+            self.enpassant_logs.pop()
+            self.castle_rights_logs.pop()
+            self.moves.pop().undo()
+            if self.moves:
+                last_move = self.moves[-1]
+                if last_move.moved_king:
+                    self.update_king(last_move.start_row, last_move.start_column, last_move.piece_moved[0] == 'w')
 
-    def update_castle_rights(self, move: Move):
+    def update_castle_rights(self, move: Move) -> None:
         player = 'w' if len(self.castle_rights_logs) % 2 else 'b'
-        dictionary = self.castle_rights._asdict()
+        dictionary = self.castle_rights_logs[-1]._asdict()
         if move.piece_moved[1] == 'K':
             dictionary[player + 'ks'] = False
             dictionary[player + 'qs'] = False
@@ -122,6 +90,19 @@ class StatesLogging:
                 dictionary[player + 'ks'] = False
             else:
                 dictionary[player + 'qs'] = False
+        self.castle_rights_logs.append(CastleRights(*dictionary.values()))
 
-        self.castle_rights = CastleRights(*dictionary.values())
-        self.castle_rights_logs.append(self.castle_rights)
+    def update_king(self, row: int, column: int, player: bool) -> None:
+        king = 'white_king' if player else 'black_king'
+        setattr(self.kings_position, king, (row, column))
+
+    def get_king(self, white: bool) -> tuple[int, int]:
+        return self.kings_position.white_king if white else self.kings_position.black_king
+
+    @property
+    def enpassant_possible(self) -> tuple[int, int]:
+        return self.enpassant_logs[-1]
+
+    @property
+    def castle_rights(self) -> CastleRights:
+        return self.castle_rights_logs[-1]
