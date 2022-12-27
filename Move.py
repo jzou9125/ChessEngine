@@ -27,7 +27,7 @@ class Move:
 
     @property
     def moved_king(self):
-        return self.piece_moved[1] == 'K' or self.piece_captured[1] == 'K'
+        return self.piece_moved[1] == 'K'
 
     @property
     def moved_pawn(self):
