@@ -26,25 +26,31 @@ class Direction:
         self.inside = self.inside_board()
         self.count = 1
 
-    def travel_in_direction(self):
+    def travel_in_direction(self) -> Generator:
+        """
+            returns a direction object if the current coordinates are inside the board
+        """
         while self.inside_board():
             yield self
             self.row += self.direction[0]
             self.column += self.direction[1]
             self.count += 1
 
-    def inside_board(self):
+    def inside_board(self) -> bool:
+        """
+            helper method to check if the row and column are inside the board
+        """
         return self.row in range(self.board_size) and self.column in range(self.board_size)
 
     @property
-    def single_pass(self):
+    def single_pass(self) -> None:
+        """
+            used when we only require one iteration of travel in direction
+        """
         for value in self.generator_field:
             yield value
             break
 
-    @property
-    def full_coords(self):
-        return self.start_row, self.start_column, self.row, self.column
 
     @property
     def current_coords(self):
